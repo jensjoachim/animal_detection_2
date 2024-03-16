@@ -1,0 +1,4 @@
+# Ignore all python cache files
+*.pyc
+# Ignore emacs cacehe
+*~
