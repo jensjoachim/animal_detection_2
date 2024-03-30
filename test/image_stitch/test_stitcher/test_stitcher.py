@@ -24,6 +24,7 @@ cam_en        = True
 #cam_dim       = (800,600)
 cam_dim       = (1920, 1080)
 #cam_dim       = (4608,2592)
+#cam_dim       = (1600, 800)
 vid_stitch_en = True
 image_paths   = ['../o_0.png','../o_1.png','../o_2.png']
 
@@ -95,8 +96,12 @@ if cam_en == True:
 # Set settings
 
 #settings = {"detector": "sift", "confidence_threshold": 0.2}
-settings = {"confidence_threshold": 0.4, "compensator": "no", "blender_type": "no", "finder": "no"}
-#settings = {"confidence_threshold": 0.4}
+#settings = {"confidence_threshold": 0.4, "compensator": "no", "blender_type": "no", "finder": "no"}
+settings = {"confidence_threshold": 0.4}
+settings = {"confidence_threshold": 0.3}
+settings = {"confidence_threshold": 0.3, "compensator": "no", "blender_type": "no", "finder": "no"}
+settings = {"detector": "sift", "confidence_threshold": 0.2, "blender_type": "no", "finder": "no"} # Good
+settings = {"detector": "sift", "confidence_threshold": 0.1, "compensator": "no", "blender_type": "no", "finder": "no"} # Good
 
 # Normal stitcher class or vidoe stitch
 if vid_stitch_en == True:
