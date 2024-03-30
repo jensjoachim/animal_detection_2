@@ -10,6 +10,11 @@ from libcamera import controls
 
 import cv2
 
+cam_en        = True
+cam_dim       = (1920,1080)
+vid_stitch_en = True
+image_paths   = ['../o_0.png','../o_1.png','../o_2.png']
+
 class VideoStitcher(Stitcher):
 
     def initialize_stitcher(self, **kwargs):
@@ -57,9 +62,6 @@ class VideoStitcher(Stitcher):
         self.blend_images(imgs, seam_masks, corners)
         return self.create_final_panorama()
 
-cam_en = True
-    
-image_paths=['../o_0.png','../o_1.png','../o_2.png']
 imgs = []
 if cam_en == False:
     for i in range(len(image_paths)): 
@@ -70,26 +72,43 @@ if cam_en == True:
     time.sleep(0.5)
     picam2 = Picamera2(0)
     time.sleep(0.5)
-    picam1.configure(picam1.create_preview_configuration(main={"format": 'RGB888', "size": (1920, 1080)},transform=Transform(hflip=True,vflip=True)))
-    picam2.configure(picam2.create_preview_configuration(main={"format": 'RGB888', "size": (1920, 1080)},transform=Transform(hflip=True,vflip=True)))
+    picam1.configure(picam1.create_preview_configuration(main={"format": 'RGB888', "size": cam_dim},transform=Transform(hflip=True,vflip=True)))
+    picam2.configure(picam2.create_preview_configuration(main={"format": 'RGB888', "size": cam_dim},transform=Transform(hflip=True,vflip=True)))
     picam1.start()
     picam2.start()
     time.sleep(1)
-    #picam1.capture_file("cam1.jpg")
-    #picam2.capture_file("cam2.jpg")
     imgs.append(picam1.capture_array())
     imgs.append(picam2.capture_array())
-    
+
+# Set settings
+
 #settings = {"detector": "sift", "confidence_threshold": 0.2}
+settings = {"confidence_threshold": 0.4, "compensator": "no", "blender_type": "no", "finder": "no"}
+#settings = {"confidence_threshold": 0.4}
 
-#settings = {"confidence_threshold": 0.4, "compensator": "no", "blender_type": "no", "finder": "no"}
-settings = {"confidence_threshold": 0.4}
-videostitcher = VideoStitcher(**settings)
+# Normal stitcher class or vidoe stitch
+if vid_stitch_en == True:
+    stitcher = VideoStitcher(**settings)
+else:
+    stitcher = Stitcher(**settings)
+    
 print(str(time.time()))
-panorama = videostitcher.stitch(imgs)
+panorama = stitcher.stitch(imgs)
 print(str(time.time()))
-panorama = videostitcher.stitch(imgs)
+panorama = stitcher.stitch(imgs)
 print(str(time.time()))
 
-cv2.imshow('final result',panorama) 
-cv2.waitKey(0)
+while cam_en == False:
+    cv2.imshow('final result',panorama) 
+    if (cv2.waitKey(10) & 0xFF) == ord('q'):
+        break
+    time.sleep(1)
+
+while cam_en == True:
+    cv2.imshow('final result',panorama) 
+    if (cv2.waitKey(10) & 0xFF) == ord('q'):
+        break
+    imgs = []
+    imgs.append(picam1.capture_array())
+    imgs.append(picam2.capture_array())
+    panorama = stitcher.stitch(imgs)
