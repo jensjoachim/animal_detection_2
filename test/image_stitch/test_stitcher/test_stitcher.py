@@ -10,8 +10,20 @@ from libcamera import controls
 
 import cv2
 
+import sys
+import os
+
+# Get root directory of project to import modules
+parent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
+sys.path.insert(0,parent_dir)
+
+# Import local packages / modules
+from modules import sampling_timers
+
 cam_en        = True
-cam_dim       = (1920,1080)
+#cam_dim       = (800,600)
+cam_dim       = (1920, 1080)
+#cam_dim       = (4608,2592)
 vid_stitch_en = True
 image_paths   = ['../o_0.png','../o_1.png','../o_2.png']
 
@@ -91,12 +103,21 @@ if vid_stitch_en == True:
     stitcher = VideoStitcher(**settings)
 else:
     stitcher = Stitcher(**settings)
+
+# Set sampling timers
+st = sampling_timers.sampling_timers()
+st.add("Init",1)
     
 print(str(time.time()))
+st.start("Init")
 panorama = stitcher.stitch(imgs)
+st.stop("Init")
 print(str(time.time()))
 panorama = stitcher.stitch(imgs)
 print(str(time.time()))
+
+label_list = ["time_curr"]
+st.print_pretty(True,label_list)
 
 while cam_en == False:
     cv2.imshow('final result',panorama) 
@@ -104,11 +125,18 @@ while cam_en == False:
         break
     time.sleep(1)
 
-while cam_en == True:
-    cv2.imshow('final result',panorama) 
-    if (cv2.waitKey(10) & 0xFF) == ord('q'):
-        break
-    imgs = []
-    imgs.append(picam1.capture_array())
-    imgs.append(picam2.capture_array())
-    panorama = stitcher.stitch(imgs)
+if cam_en == True:
+    st.remove("Init")
+    st.add("Run",4)
+    while True:
+        cv2.imshow('final result',panorama) 
+        if (cv2.waitKey(10) & 0xFF) == ord('q'):
+            break
+        imgs = []
+        imgs.append(picam1.capture_array())
+        imgs.append(picam2.capture_array())
+        st.start("Run")
+        panorama = stitcher.stitch(imgs)
+        st.stop("Run")
+        label_list = ["fps_curr","fps_mean"]
+        st.print_pretty(False,label_list)
