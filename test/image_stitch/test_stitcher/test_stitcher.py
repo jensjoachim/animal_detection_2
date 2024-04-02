@@ -20,7 +20,7 @@ sys.path.insert(0,parent_dir)
 # Import local packages / modules
 from modules import sampling_timers
 
-cam_en        = True
+cam_en        = False
 #cam_dim       = (800,600)
 cam_dim       = (1920, 1080)
 #cam_dim       = (4608,2592)
@@ -87,8 +87,14 @@ if cam_en == True:
     time.sleep(0.5)
     picam1.configure(picam1.create_preview_configuration(main={"format": 'RGB888', "size": cam_dim},transform=Transform(hflip=True,vflip=True)))
     picam2.configure(picam2.create_preview_configuration(main={"format": 'RGB888', "size": cam_dim},transform=Transform(hflip=True,vflip=True)))
+    picam1.set_controls({"AfMode": controls.AfModeEnum.Continuous, "AfSpeed": controls.AfSpeedEnum.Fast})
+    picam2.set_controls({"AfMode": controls.AfModeEnum.Continuous, "AfSpeed": controls.AfSpeedEnum.Fast})
     picam1.start()
     picam2.start()
+    time.sleep(1)
+    time.sleep(1)
+    picam1.capture_array()
+    picam2.capture_array()
     time.sleep(1)
     imgs.append(picam1.capture_array())
     imgs.append(picam2.capture_array())
@@ -98,16 +104,52 @@ if cam_en == True:
 #settings = {"detector": "sift", "confidence_threshold": 0.2}
 #settings = {"confidence_threshold": 0.4, "compensator": "no", "blender_type": "no", "finder": "no"}
 settings = {"confidence_threshold": 0.4}
-settings = {"confidence_threshold": 0.3}
-settings = {"confidence_threshold": 0.3, "compensator": "no", "blender_type": "no", "finder": "no"}
-settings = {"detector": "sift", "confidence_threshold": 0.2, "blender_type": "no", "finder": "no"} # Good
-settings = {"detector": "sift", "confidence_threshold": 0.1, "compensator": "no", "blender_type": "no", "finder": "no"} # Good
+#settings = {"confidence_threshold": 0.3}
+#settings = {"confidence_threshold": 0.3, "compensator": "no", "blender_type": "no", "finder": "no"}
+#settings = {"detector": "sift", "confidence_threshold": 0.2, "blender_type": "no", "finder": "no"} # Good
+#settings = {"detector": "sift", "confidence_threshold": 0.1, "compensator": "no", "blender_type": "no", "finder": "no","warper_type": "cylindrical"} # Good
+
+#settings = {"detector": "orb", "crop": False, "confidence_threshold": 0.7, "blender_type": "no", "finder": "no", "nfeatures": 1000, "adjuster": "ray"}
+#settings = {"detector": "orb", "crop": False, "confidence_threshold": 0.7, "blender_type": "no", "finder": "no", "nfeatures": 1000, "adjuster": "ray","warper_type": "cylindrical"}
+#settings = {"detector": "orb", "crop": False, "confidence_threshold": 0.7, "blender_type": "no", "finder": "no", "nfeatures": 500, "adjuster": "ray","warper_type": "cylindrical"}
+#settings = {"detector": "sift", "crop": False, "confidence_threshold": 0.7, "blender_type": "no", "finder": "no", "nfeatures": 1000, "adjuster": "ray","warper_type": "plane"}
+#settings = {"detector": "orb", "crop": False, "confidence_threshold": 0.7, "finder": "no", "nfeatures": 500, "adjuster": "ray","warper_type": "cylindrical"}
+#settings = {"detector": "orb", "crop": False, "confidence_threshold": 0.7, "nfeatures": 500, "adjuster": "ray","warper_type": "cylindrical","compensator": "no", "blender_type": "no", "finder": "no"}settings = {"detector": "orb", "crop": "False", "confidence_threshold": 0.7, "nfeatures": 500, "adjuster": "ray","warper_type": "cylindrical","compensator": "no", "blender_type": "no"}
+
+#settings = {"detector": "orb", "crop": False, "confidence_threshold": 0.7, "nfeatures": 500, "adjuster": "ray","warper_type": "cylindrical", "compensator": "no", "blender_type": "no", "finder": "no"}
+#settings = {"detector": "orb", "crop": False, "confidence_threshold": 0.7, "nfeatures": 500, "adjuster": "ray","warper_type": "cylindrical", "blender_type": "no"}
+#settings = {"detector": "orb", "crop": False, "confidence_threshold": 0.7, "nfeatures": 500, "adjuster": "ray","warper_type": "cylindrical"}
+#settings = {"detector": "orb", "confidence_threshold": 0.7, "nfeatures": 500, "adjuster": "ray","warper_type": "cylindrical"} # Good
+
+
+settings = {"detector": "orb", "crop": False, "confidence_threshold": 0.7, "nfeatures": 2500, "adjuster": "ray","warper_type": "cylindrical", "compensator": "no", "blender_type": "no", "finder": "no"}
+
+#--adjuster {ray,reproj,affine,no}
+
+
+
 
 # Normal stitcher class or vidoe stitch
 if vid_stitch_en == True:
     stitcher = VideoStitcher(**settings)
 else:
     stitcher = Stitcher(**settings)
+
+#settings = {"crop": False,"confidence_threshold": 0.5,"blender_type": "no", "finder": "no",}   
+#stitcher = AffineStitcher(**settings)
+
+# Debug
+#print("Print dir:")
+#print(dir(stitcher))
+#print("Print dict:")
+print(stitcher.__dict__)
+print("Print dict setting:")
+print(stitcher.settings)
+print("Print dict setting:")
+#print(stitcher.settings["blender_type"])
+#stitcher.settings["blender_type"] = "no"
+#print(stitcher.settings["blender_type"])
+print(stitcher.settings["blender_type"])
 
 # Set sampling timers
 st = sampling_timers.sampling_timers()
@@ -125,18 +167,40 @@ label_list = ["time_curr"]
 st.print_pretty(True,label_list)
 
 while cam_en == False:
-    cv2.imshow('final result',panorama) 
-    if (cv2.waitKey(10) & 0xFF) == ord('q'):
+    cv2.imshow('final result',panorama)
+    waitkey_in = cv2.waitKey(10) & 0xFF
+    restitch = False
+    if waitkey_in == ord('q'):
         break
+    if waitkey_in == ord('w'):
+        stitcher.settings["blender_type"] = "no"
+        print(stitcher.settings["blender_type"])
+        restitch = True
+    if waitkey_in == ord('s'):
+        stitcher.settings["blender_type"] = "multiband"
+        print(stitcher.settings["blender_type"])
+        restitch = True
+    if restitch == True:
+        panorama = stitcher.stitch(imgs)
     time.sleep(1)
 
 if cam_en == True:
     st.remove("Init")
     st.add("Run",4)
+
+    cv2.namedWindow("final", cv2.WINDOW_NORMAL)
+    cv2.setWindowProperty("final", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+            
     while True:
-        cv2.imshow('final result',panorama) 
-        if (cv2.waitKey(10) & 0xFF) == ord('q'):
+        
+        cv2.imshow('final',panorama)
+        waitkey_in = cv2.waitKey(10) & 0xFF
+        if waitkey_in == ord('q'):
             break
+        if waitkey_in == ord('r'):
+            stitcher = VideoStitcher(**settings)
+            panorama = stitcher.stitch(imgs)
+         
         imgs = []
         imgs.append(picam1.capture_array())
         imgs.append(picam2.capture_array())
@@ -145,3 +209,4 @@ if cam_en == True:
         st.stop("Run")
         label_list = ["fps_curr","fps_mean"]
         st.print_pretty(False,label_list)
+
