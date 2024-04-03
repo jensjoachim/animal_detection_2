@@ -20,11 +20,10 @@ sys.path.insert(0,parent_dir)
 # Import local packages / modules
 from modules import sampling_timers
 
-cam_en        = False
+cam_en        = True
 #cam_dim       = (800,600)
 cam_dim       = (1920, 1080)
 #cam_dim       = (4608,2592)
-#cam_dim       = (1600, 800)
 vid_stitch_en = True
 image_paths   = ['../o_0.png','../o_1.png','../o_2.png']
 
@@ -76,9 +75,36 @@ class VideoStitcher(Stitcher):
         return self.create_final_panorama()
 
 imgs = []
+msks = []
 if cam_en == False:
-    for i in range(len(image_paths)): 
-        imgs.append(cv2.imread(image_paths[i]))
+    for i in range(len(image_paths)):
+        img_in = cv2.imread(image_paths[i])
+        imgs.append(img_in)
+        img_msk = img_in.copy()
+        h, w, c = img_msk.shape
+        #print("h: "+str(h)+", w: "+str(w)+", c: "+str(c))
+
+        d = 3.9
+
+        if i == 0:
+            cv2.rectangle(img_msk, (0,0), (int(w/d*(d-1)),h-1), (0,0,0), -1)
+            cv2.rectangle(img_msk, (int(w/d*(d-1)),0), (w-1,h-1), (255,255,255), -1)
+        else:
+            cv2.rectangle(img_msk, (0,0), (int(w/d),h-1), (255,255,255), -1)
+            cv2.rectangle(img_msk, (int(w/d*1),0), (w-1,h-1), (0,0,0), -1)
+
+        msks.append(img_msk)
+
+        while True:
+            #cv2.imshow("img_"+str(i),img_in)
+            cv2.imshow("msk_"+str(i),img_msk)
+            waitkey_in = cv2.waitKey(10) & 0xFF
+            time.sleep(0.1)
+            if waitkey_in == ord('q'):
+                break
+
+        if i == 1:
+            break
 
 if cam_en == True:
     picam1 = Picamera2(1)
@@ -122,7 +148,9 @@ settings = {"confidence_threshold": 0.4}
 #settings = {"detector": "orb", "confidence_threshold": 0.7, "nfeatures": 500, "adjuster": "ray","warper_type": "cylindrical"} # Good
 
 
-settings = {"detector": "orb", "crop": False, "confidence_threshold": 0.7, "nfeatures": 2500, "adjuster": "ray","warper_type": "cylindrical", "compensator": "no", "blender_type": "no", "finder": "no"}
+settings = {"detector": "orb", "crop": False, "confidence_threshold": 0.7, "nfeatures": 500, "adjuster": "ray","warper_type": "cylindrical", "compensator": "no", "blender_type": "no", "finder": "no"} # Good
+
+settings = {"detector": "sift", "crop": False, "confidence_threshold": 0.7, "nfeatures": 1500, "adjuster": "ray","warper_type": "cylindrical", "blender_type": "no", "finder": "no"}
 
 #--adjuster {ray,reproj,affine,no}
 
@@ -157,10 +185,10 @@ st.add("Init",1)
     
 print(str(time.time()))
 st.start("Init")
-panorama = stitcher.stitch(imgs)
+panorama = stitcher.stitch(imgs,msks)
 st.stop("Init")
 print(str(time.time()))
-panorama = stitcher.stitch(imgs)
+panorama = stitcher.stitch(imgs,msks)
 print(str(time.time()))
 
 label_list = ["time_curr"]
@@ -169,19 +197,8 @@ st.print_pretty(True,label_list)
 while cam_en == False:
     cv2.imshow('final result',panorama)
     waitkey_in = cv2.waitKey(10) & 0xFF
-    restitch = False
     if waitkey_in == ord('q'):
         break
-    if waitkey_in == ord('w'):
-        stitcher.settings["blender_type"] = "no"
-        print(stitcher.settings["blender_type"])
-        restitch = True
-    if waitkey_in == ord('s'):
-        stitcher.settings["blender_type"] = "multiband"
-        print(stitcher.settings["blender_type"])
-        restitch = True
-    if restitch == True:
-        panorama = stitcher.stitch(imgs)
     time.sleep(1)
 
 if cam_en == True:
@@ -204,9 +221,31 @@ if cam_en == True:
         imgs = []
         imgs.append(picam1.capture_array())
         imgs.append(picam2.capture_array())
+
+        # Option 1
+        alpha = 2.0 # Contrast control
+        beta = 10 # Brightness control
+        #alpha = 3.0 # Contrast control
+        #beta = -100 # Brightness control
+        imgs[0] = cv2.convertScaleAbs(imgs[0], alpha=alpha, beta=beta)
+        imgs[1] = cv2.convertScaleAbs(imgs[1], alpha=alpha, beta=beta)
+        
+        # Option 2
+        #contrast = 2 # Contrast control ( 0 to 127)
+        #brightness = 0 # Brightness control (0-100)
+        #imgs[0] = cv2.addWeighted(imgs[0], contrast, imgs[0], 0, brightness)
+        #imgs[1] = cv2.addWeighted(imgs[1], contrast, imgs[1], 0, brightness)
+        
         st.start("Run")
         panorama = stitcher.stitch(imgs)
         st.stop("Run")
         label_list = ["fps_curr","fps_mean"]
         st.print_pretty(False,label_list)
 
+
+# - Add SW contrast/brightness handlers
+# - Disable/Enable SW contrast/brightness
+# - Enable/disable crop
+# - Add calibration handler
+# - Store/Reload registration
+# - Find a way to enable compensator/blender/composition
