@@ -1,5 +1,4 @@
 from stitching import Stitcher
-from stitching import AffineStitcher
 from stitching.images import Images
 
 import time
@@ -22,8 +21,8 @@ sys.path.insert(0,parent_dir)
 # Import local packages / modules
 from modules import sampling_timers
 
-#cam_en        = True
-cam_en        = False
+cam_en        = True
+#cam_en        = False
 #cam_dim       = (800,600)
 cam_dim       = (1920, 1080)
 #cam_dim       = (4608,2592)
@@ -43,7 +42,8 @@ settings = {"detector": "sift", "crop": False, "confidence_threshold": 0.7, "nfe
 
 settings = {"detector": "sift", "crop": False, "confidence_threshold": 0.7, "nfeatures": 1500, "adjuster": "ray","warper_type": "cylindrical", "blender_type": "no", "finder": "no"}
 
-settings_tmp = copy.deepcopy(settings)
+
+
 
 
 class VideoStitcher(Stitcher):
@@ -179,13 +179,7 @@ while True:
     if waitkey_in == ord('q'):
         break
     if waitkey_in == ord('r'):
-        #del stitcher
         stitcher = init_stitcher(vid_stitch_en,**settings)
-        print(stitcher.__dict__)
-        print("Print dict setting:")
-        print(stitcher.settings)
-        #imgs = []
-        #imgs = get_imgs(cam_en,image_paths)
         panorama = stitcher.stitch(imgs)
         cv2.destroyAllWindows()
         cv2.imshow('final',panorama)
@@ -195,7 +189,6 @@ while True:
     # Print time
     label_list = ["fps_curr","fps_mean"]
     st.print_pretty(False,label_list)
-    #time.sleep(1)
 
 
 #while cam_en == False:
