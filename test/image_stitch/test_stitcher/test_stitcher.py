@@ -1,5 +1,9 @@
 from stitching import Stitcher
 from stitching.images import Images
+from stitching.cropper import Cropper
+from stitching.seam_finder import SeamFinder
+from stitching.exposure_error_compensator import ExposureErrorCompensator
+from stitching.blender import Blender
 
 import time
 
@@ -14,6 +18,9 @@ import cv2
 import sys
 import os
 
+
+
+
 # Get root directory of project to import modules
 parent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 sys.path.insert(0,parent_dir)
@@ -21,8 +28,8 @@ sys.path.insert(0,parent_dir)
 # Import local packages / modules
 from modules import sampling_timers
 
-cam_en        = True
-#cam_en        = False
+#cam_en        = True
+cam_en        = False
 #cam_dim       = (800,600)
 cam_dim       = (1920, 1080)
 #cam_dim       = (4608,2592)
@@ -61,6 +68,7 @@ class VideoStitcher(Stitcher):
         imgs = self.resize_medium_resolution()
         
         if not self.cameras_registered:
+            print("Camera registration: Starting")
             features = self.find_features(imgs, feature_masks)
             matches = self.match_features(features)
             imgs, features, matches = self.subset(imgs, features, matches)
@@ -70,6 +78,7 @@ class VideoStitcher(Stitcher):
             self.estimate_scale(cameras)
             self.cameras = cameras
             self.cameras_registered = True
+            print("Camera registration: OK")
 
         imgs = self.resize_low_resolution()
         imgs, masks, corners, sizes = self.warp_low_resolution(imgs, self.cameras)
@@ -140,20 +149,21 @@ stitcher = init_stitcher(vid_stitch_en,**settings)
 
 # Set sampling timers
 st = sampling_timers.sampling_timers()
-st.add("Run",4)
+st.add("main",4)
+st.add("stitch",4)
 
 # Debug
 #print("Print dir:")
 #print(dir(stitcher))
 #print("Print dict:")
-print(stitcher.__dict__)
-print("Print dict setting:")
-print(stitcher.settings)
-print("Print dict setting:")
+#print(stitcher.__dict__)
+#print("Print dict setting:")
+#print(stitcher.settings)
+#print("Print dict setting:")
 #print(stitcher.settings["blender_type"])
 #stitcher.settings["blender_type"] = "no"
 #print(stitcher.settings["blender_type"])
-print(stitcher.settings["blender_type"])
+#print(stitcher.settings["blender_type"])
 
 # First panorama will set registration
 imgs = get_imgs(cam_en,image_paths)
@@ -167,18 +177,20 @@ cv2.waitKey(1)
 
 # Run loop
 while True:
+    st.start("main")
     # Stitch images
     imgs = []
     imgs = get_imgs(cam_en,image_paths)
-    st.start("Run")
+    st.start("stitch")
     panorama = stitcher.stitch(imgs)
-    st.stop("Run")
+    st.stop("stitch")
     # Show
     cv2.imshow('final',panorama)
+    # Handle keybaord input
     waitkey_in = cv2.waitKey(1) & 0xFF
-    if waitkey_in == ord('q'):
+    if waitkey_in == ord('q'): # Exit
         break
-    if waitkey_in == ord('r'):
+    if waitkey_in == ord('r'): # Recalc stitch registration
         stitcher = init_stitcher(vid_stitch_en,**settings)
         panorama = stitcher.stitch(imgs)
         cv2.destroyAllWindows()
@@ -186,61 +198,34 @@ while True:
         cv2.namedWindow('final', cv2.WINDOW_NORMAL)
         cv2.setWindowProperty('final', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         cv2.waitKey(1)
+    if waitkey_in == ord('c'): # Crop on/off
+        if stitcher.cropper.do_crop == True:
+            stitcher.cropper = Cropper(False)
+        else:
+            stitcher.cropper = Cropper(True)
+    if waitkey_in == ord('f'): # Finder ON
+        stitcher.seam_finder = SeamFinder()
+    if waitkey_in == ord('g'): # Finder OFF
+        stitcher.seam_finder = SeamFinder("no")
+    if waitkey_in == ord('t'): # Compesator ON
+        stitcher.compensator = ExposureErrorCompensator()
+    if waitkey_in == ord('y'): # Compensator OFF
+        stitcher.compensator = ExposureErrorCompensator("no")
+    if waitkey_in == ord('b'): # Blender ON
+        #stitcher.blender = Blender()
+        #stitcher.blender = Blender("feather",1)
+        stitcher.blender = Blender("multiband",1)
+    if waitkey_in == ord('n'): # Blender OFF
+        stitcher.blender = Blender("no")
     # Print time
     label_list = ["fps_curr","fps_mean"]
-    st.print_pretty(False,label_list)
+    #st.print_pretty(False,label_list)
 
-
-#while cam_en == False:
-#    cv2.imshow('final result',panorama)
-#    waitkey_in = cv2.waitKey(10) & 0xFF
-#    if waitkey_in == ord('q'):
-#        break
-#    time.sleep(1)
-#
-#if cam_en == True:
-#    st.add("Run",4)
-#
-#
-#            
-#    while True:
-#        
-#        cv2.imshow('final',panorama)
-#        waitkey_in = cv2.waitKey(10) & 0xFF
-#        if waitkey_in == ord('q'):
-#            break
-#        if waitkey_in == ord('r'):
-#            stitcher = init_stitcher(vid_stitch_en)
-#            panorama = stitcher.stitch(imgs)
-#         
-#        imgs = []
-#        imgs.append(picam1.capture_array())
-#        imgs.append(picam2.capture_array())
-#
-#        # Option 1
-#        alpha = 2.0 # Contrast control
-#        beta = 10 # Brightness control
-#        #alpha = 3.0 # Contrast control
-#        #beta = -100 # Brightness control
-#        imgs[0] = cv2.convertScaleAbs(imgs[0], alpha=alpha, beta=beta)
-#        imgs[1] = cv2.convertScaleAbs(imgs[1], alpha=alpha, beta=beta)
-#        
-#        # Option 2
-#        #contrast = 2 # Contrast control ( 0 to 127)
-#        #brightness = 0 # Brightness control (0-100)
-#        #imgs[0] = cv2.addWeighted(imgs[0], contrast, imgs[0], 0, brightness)
-#        #imgs[1] = cv2.addWeighted(imgs[1], contrast, imgs[1], 0, brightness)
-#        
-#        st.start("Run")
-#        panorama = stitcher.stitch(imgs)
-#        st.stop("Run")
-#        label_list = ["fps_curr","fps_mean"]
-#        st.print_pretty(False,label_list)
 
 
 # - Add SW contrast/brightness handlers
 # - Disable/Enable SW contrast/brightness
-# - Enable/disable crop
+# - Enable/disable crop -> Also update args!
 # - Add calibration handler
 # - Store/Reload registration
-# - Find a way to enable compensator/blender/composition
+# - Find a way to enable compensator/blender/composition  -> Also update args!
