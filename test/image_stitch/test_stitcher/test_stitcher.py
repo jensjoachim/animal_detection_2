@@ -28,8 +28,8 @@ sys.path.insert(0,parent_dir)
 # Import local packages / modules
 from modules import sampling_timers
 
-#cam_en        = True
-cam_en        = False
+cam_en        = True
+#cam_en        = False
 #cam_dim       = (800,600)
 cam_dim       = (1920, 1080)
 #cam_dim       = (4608,2592)
@@ -167,13 +167,27 @@ st.add("stitch",4)
 
 # First panorama will set registration
 imgs = get_imgs(cam_en,image_paths)
-panorama = stitcher.stitch(imgs)
+stitch_success = True
+try:
+    panorama = stitcher.stitch(imgs)
+except:
+    stitch_success = False
+    print("Stitching failed!")
 
+# If stitching failed opne images
+if stitch_success == False:
+    while True:
+        for i in range(len(imgs)):
+            cv2.imshow("img_"+str(i),imgs[i])
+            cv2.namedWindow("img_"+str(i), cv2.WINDOW_NORMAL)
+            waitkey_in = cv2.waitKey(2000) & 0xFF
+            if waitkey_in == ord('q'): # Exit
+                sys.exit()
+    
 # Show first image
 cv2.imshow('final',panorama)
 cv2.namedWindow('final', cv2.WINDOW_NORMAL)
-cv2.setWindowProperty('final', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-cv2.waitKey(1)
+cv2.waitKey(2000)
 
 # Run loop
 while True:
@@ -189,15 +203,14 @@ while True:
     # Handle keybaord input
     waitkey_in = cv2.waitKey(1) & 0xFF
     if waitkey_in == ord('q'): # Exit
-        break
+        sys.exit()
     if waitkey_in == ord('r'): # Recalc stitch registration
         stitcher = init_stitcher(vid_stitch_en,**settings)
         panorama = stitcher.stitch(imgs)
         cv2.destroyAllWindows()
         cv2.imshow('final',panorama)
         cv2.namedWindow('final', cv2.WINDOW_NORMAL)
-        cv2.setWindowProperty('final', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-        cv2.waitKey(1)
+        cv2.waitKey(2000)
     if waitkey_in == ord('c'): # Crop on/off
         if stitcher.cropper.do_crop == True:
             stitcher.cropper = Cropper(False)
