@@ -48,6 +48,7 @@ settings = {"detector": "orb", "crop": False, "confidence_threshold": 0.7, "nfea
 settings = {"detector": "sift", "crop": False, "confidence_threshold": 0.7, "nfeatures": 1500, "adjuster": "ray","warper_type": "cylindrical", "blender_type": "no", "finder": "no"}
 
 settings = {"detector": "sift", "crop": False, "confidence_threshold": 0.7, "nfeatures": 1500, "adjuster": "ray","warper_type": "cylindrical", "blender_type": "no", "finder": "no"}
+settings = {"detector": "orb", "crop": False, "confidence_threshold": 0.7, "nfeatures": 1500, "adjuster": "ray","warper_type": "cylindrical", "blender_type": "no", "finder": "no"}
 
 
 
@@ -113,8 +114,10 @@ def init_get_imgs(cam_en):
         time.sleep(0.5)
         picam1.configure(picam1.create_preview_configuration(main={"format": 'RGB888', "size": cam_dim},transform=Transform(hflip=True,vflip=True)))
         picam2.configure(picam2.create_preview_configuration(main={"format": 'RGB888', "size": cam_dim},transform=Transform(hflip=True,vflip=True)))
-        picam1.set_controls({"AfMode": controls.AfModeEnum.Continuous, "AfSpeed": controls.AfSpeedEnum.Fast})
-        picam2.set_controls({"AfMode": controls.AfModeEnum.Continuous, "AfSpeed": controls.AfSpeedEnum.Fast})
+        picam2.set_controls({"AfMode": controls.AfModeEnum.Manual, "LensPosition": 0.0})
+        picam2.set_controls({"AfMode": controls.AfModeEnum.Manual, "LensPosition": 0.0})
+        #picam1.set_controls({"AfMode": controls.AfModeEnum.Continuous, "AfSpeed": controls.AfSpeedEnum.Fast})
+        #picam2.set_controls({"AfMode": controls.AfModeEnum.Continuous, "AfSpeed": controls.AfSpeedEnum.Fast})
         picam1.start()
         picam2.start()
         time.sleep(2)
@@ -178,16 +181,18 @@ except:
 if stitch_success == False:
     while True:
         for i in range(len(imgs)):
-            cv2.imshow("img_"+str(i),imgs[i])
             cv2.namedWindow("img_"+str(i), cv2.WINDOW_NORMAL)
-            waitkey_in = cv2.waitKey(2000) & 0xFF
+            cv2.setWindowProperty("img_"+str(i), cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+            cv2.imshow("img_"+str(i),imgs[i])
+            waitkey_in = cv2.waitKey(1) & 0xFF
             if waitkey_in == ord('q'): # Exit
                 sys.exit()
     
 # Show first image
-cv2.imshow('final',panorama)
 cv2.namedWindow('final', cv2.WINDOW_NORMAL)
-cv2.waitKey(2000)
+cv2.setWindowProperty('final', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+cv2.imshow('final',panorama)
+cv2.waitKey(1)
 
 # Run loop
 while True:
@@ -208,14 +213,20 @@ while True:
         stitcher = init_stitcher(vid_stitch_en,**settings)
         panorama = stitcher.stitch(imgs)
         cv2.destroyAllWindows()
-        cv2.imshow('final',panorama)
         cv2.namedWindow('final', cv2.WINDOW_NORMAL)
-        cv2.waitKey(2000)
+        cv2.setWindowProperty('final', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        cv2.imshow('final',panorama)
+        cv2.waitKey(1)
     if waitkey_in == ord('c'): # Crop on/off
         if stitcher.cropper.do_crop == True:
             stitcher.cropper = Cropper(False)
         else:
             stitcher.cropper = Cropper(True)
+        cv2.destroyAllWindows()
+        cv2.namedWindow('final', cv2.WINDOW_NORMAL)
+        cv2.setWindowProperty('final', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        cv2.imshow('final',panorama)
+        cv2.waitKey(1)
     if waitkey_in == ord('f'): # Finder ON
         stitcher.seam_finder = SeamFinder()
     if waitkey_in == ord('g'): # Finder OFF
