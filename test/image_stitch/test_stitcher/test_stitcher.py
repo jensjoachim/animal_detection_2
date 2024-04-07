@@ -62,7 +62,7 @@ class VideoStitcher(Stitcher):
         self.cameras = None
         self.cameras_registered = False
 
-    def stitch(self, images, feature_masks=[]):
+    def stitch(self, images, lock_seam_mask=False, feature_masks=[]):
         self.images = Images.of(
             images, self.medium_megapix, self.low_megapix, self.final_megapix
         )
@@ -89,7 +89,11 @@ class VideoStitcher(Stitcher):
             imgs, masks, corners, sizes
         )
         self.estimate_exposure_errors(corners, imgs, masks)
-        seam_masks = self.find_seam_masks(imgs, corners, masks)
+        if lock_seam_mask == False:
+            seam_masks = self.find_seam_masks(imgs, corners, masks)
+            self.seam_masks = seam_masks
+        else:
+            seam_masks = self.seam_masks
 
         imgs = self.resize_final_resolution()
         imgs, masks, corners, sizes = self.warp_final_resolution(imgs, self.cameras)
@@ -98,6 +102,11 @@ class VideoStitcher(Stitcher):
         )
         self.set_masks(masks)
         imgs = self.compensate_exposure_errors(corners, imgs)
+        #if lock_seam_mask == False:
+        #    seam_masks = self.resize_seam_masks(seam_masks)
+        #    self.seam_masks_resize = seam_masks
+        #else:
+        #    seam_masks = self.seam_masks_resize
         seam_masks = self.resize_seam_masks(seam_masks)
 
         self.initialize_composition(corners, sizes)
@@ -158,8 +167,8 @@ def sw_contrast_brightness(opt,imgs_in):
             # Option 1
             #alpha = 2.0 # Contrast control
             #beta = 10 # Brightness control
-            alpha = 5.0 # Contrast control
-            beta = -200 # Brightness control
+            alpha = 3.0 # Contrast control
+            beta = -100 # Brightness control
             imgs_out.append(cv2.convertScaleAbs(img, alpha=alpha, beta=beta))
         elif opt == 2:
             # Option 2
@@ -197,9 +206,14 @@ st.add("stitch",4)
 #print(stitcher.settings["blender_type"])
 #print(stitcher.settings["blender_type"])
 
+
+sw_con_bright_en = 1
+finder_lock = False
+
+
+
 # First panorama will set registration
 imgs = get_imgs(cam_en,image_paths)
-sw_con_bright_en = 1
 imgs = sw_contrast_brightness(sw_con_bright_en,imgs)
 stitch_success = True
 try:
@@ -234,7 +248,7 @@ while True:
     imgs = get_imgs(cam_en,image_paths)
     imgs = sw_contrast_brightness(sw_con_bright_en,imgs)
     st.start("stitch")
-    panorama = stitcher.stitch(imgs)
+    panorama = stitcher.stitch(imgs,finder_lock)
     st.stop("stitch")
     # Show
     cv2.imshow('final',panorama)
@@ -264,6 +278,12 @@ while True:
         stitcher.seam_finder = SeamFinder()
     if waitkey_in == ord('g'): # Finder OFF
         stitcher.seam_finder = SeamFinder("no")
+    if waitkey_in == ord('h'): # Finder Lock
+        if cam_en == True:
+            if finder_lock == False:
+                finder_lock = True
+            else:
+                finder_lock = False
     if waitkey_in == ord('t'): # Compesator ON
         stitcher.compensator = ExposureErrorCompensator()
     if waitkey_in == ord('y'): # Compensator OFF
@@ -272,15 +292,20 @@ while True:
         stitcher.blender = Blender("multiband",1)
     if waitkey_in == ord('n'): # Blender OFF
         stitcher.blender = Blender("no")
+    if waitkey_in == ord('m'): # Change constrast mode
+        sw_con_bright_en = (sw_con_bright_en + 1) % 3
     # Print time
     label_list = ["fps_curr","fps_mean"]
     #st.print_pretty(False,label_list)
 
 
 
+# - Add global configuration file
+# - Add definition for setting imshow
 # - Add SW contrast/brightness handlers
 # - Disable/Enable SW contrast/brightness
 # - Enable/disable crop -> Also update args!
 # - Add calibration handler
 # - Store/Reload registration
 # - Find a way to enable compensator/blender/composition  -> Also update args!
+# - Can finder region be locked?
