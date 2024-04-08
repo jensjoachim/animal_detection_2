@@ -5,22 +5,15 @@ from stitching.seam_finder import SeamFinder
 from stitching.exposure_error_compensator import ExposureErrorCompensator
 from stitching.blender import Blender
 
-import time
-
-import copy
-
 from picamera2 import Picamera2
 from libcamera import Transform
 from libcamera import controls
 
 import cv2
-
+import time
 import sys
 import os
-
 import inspect
-
-
 
 # Get root directory of project to import modules
 parent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
@@ -29,27 +22,37 @@ sys.path.insert(0,parent_dir)
 # Import local packages / modules
 from modules import sampling_timers
 
-cam_en        = True
-#cam_en        = False
-#cam_dim       = (800,600)
-cam_dim       = (1920, 1080)
-#cam_dim       = (4608,2592)
-image_paths   = ['../o_0.png','../o_1.png','../o_2.png']
-vid_stitch_en = True
+#### Set settings for image input of stitcher
 
-# Set settings
+settings_input = {}
+# Set option to use rpi camera of set of pictures
+#settings_input["cam_en"]        = True
+settings_input["cam_en"]       = False
+#settings_input["cam_dim"]       = (800,600)
+settings_input["cam_dim"]       = (1920, 1080)
+#settings_input["cam_dim"]       = (4608,2592)
+settings_input["image_paths"]   = ['../o_0.png','../o_1.png','../o_2.png']
+# Set to use image stitching or video stitcking, only calculating registration data once
+settings_input["vid_stitch_en"] = True
+# Change contrant and brightness if image before it's used for sticthing
+settings_input["sw_con_bright_en"] = 0
+# Lock finder region (only makes sense for video stitcking)
+settings_input["finder_lock"] = False
 
-#settings = {"confidence_threshold": 0.4, "compensator": "no", "blender_type": "no", "finder": "no"}
-settings = {"confidence_threshold": 0.4}
-#settings = {"confidence_threshold": 0.3, "compensator": "no", "blender_type": "no", "finder": "no"}
-#settings = {"detector": "sift", "confidence_threshold": 0.2, "blender_type": "no", "finder": "no"} # Good
-#settings = {"detector": "sift", "confidence_threshold": 0.1, "compensator": "no", "blender_type": "no", "finder": "no","warper_type": "cylindrical"} # Good
-#settings = {"detector": "orb", "confidence_threshold": 0.7, "nfeatures": 500, "adjuster": "ray","warper_type": "cylindrical"} # Good
-settings = {"detector": "orb", "crop": False, "confidence_threshold": 0.7, "nfeatures": 500, "adjuster": "ray","warper_type": "cylindrical", "compensator": "no", "blender_type": "no", "finder": "no"} # Good
-settings = {"detector": "sift", "crop": False, "confidence_threshold": 0.7, "nfeatures": 1500, "adjuster": "ray","warper_type": "cylindrical", "blender_type": "no", "finder": "no"}
 
-settings = {"detector": "sift", "crop": False, "confidence_threshold": 0.7, "nfeatures": 1500, "adjuster": "ray","warper_type": "cylindrical", "compensator": "no", "blender_type": "no", "finder": "no"}
-#settings = {"detector": "orb", "crop": False, "confidence_threshold": 0.7, "nfeatures": 1500, "adjuster": "ray","warper_type": "cylindrical", "blender_type": "no", "finder": "no"}
+#### Set settings for stitcher
+
+#settings_stitcher = {"confidence_threshold": 0.4, "compensator": "no", "blender_type": "no", "finder": "no"}
+settings_stitcher = {"confidence_threshold": 0.4}
+#settings_stitcher = {"confidence_threshold": 0.3, "compensator": "no", "blender_type": "no", "finder": "no"}
+#settings_stitcher = {"detector": "sift", "confidence_threshold": 0.2, "blender_type": "no", "finder": "no"} # Good
+#settings_stitcher = {"detector": "sift", "confidence_threshold": 0.1, "compensator": "no", "blender_type": "no", "finder": "no","warper_type": "cylindrical"} # Good
+#settings_stitcher = {"detector": "orb", "confidence_threshold": 0.7, "nfeatures": 500, "adjuster": "ray","warper_type": "cylindrical"} # Good
+settings_stitcher = {"detector": "orb", "crop": False, "confidence_threshold": 0.7, "nfeatures": 500, "adjuster": "ray","warper_type": "cylindrical", "compensator": "no", "blender_type": "no", "finder": "no"} # Good
+settings_stitcher = {"detector": "sift", "crop": False, "confidence_threshold": 0.7, "nfeatures": 1500, "adjuster": "ray","warper_type": "cylindrical", "blender_type": "no", "finder": "no"}
+
+settings_stitcher = {"detector": "sift", "crop": False, "confidence_threshold": 0.7, "nfeatures": 1500, "adjuster": "ray","warper_type": "cylindrical", "compensator": "no", "blender_type": "no", "finder": "no"}
+#settings_stitcher = {"detector": "orb", "crop": False, "confidence_threshold": 0.7, "nfeatures": 1500, "adjuster": "ray","warper_type": "cylindrical", "blender_type": "no", "finder": "no"}
 
 
 
@@ -114,8 +117,8 @@ class VideoStitcher(Stitcher):
         return self.create_final_panorama()
 
 # Init get image function
-def init_get_imgs(cam_en):
-    if cam_en == True:
+def init_get_imgs(**settings):
+    if settings["cam_en"] == True:
         global picam1
         global picam2
         picam1 = Picamera2(1)
@@ -134,9 +137,10 @@ def init_get_imgs(cam_en):
         picam1.capture_array()
         picam2.capture_array()
 
-def get_imgs(cam_en,image_paths):
+def get_imgs(**settings):
     imgs = []
-    if cam_en == False:
+    if settings["cam_en"] == False:
+        image_paths = settings["image_paths"]
         for i in range(len(image_paths)):
             img_in = cv2.imread(image_paths[i])
             imgs.append(img_in)
@@ -148,29 +152,29 @@ def get_imgs(cam_en,image_paths):
     return imgs
 
 # Normal stitcher class or vidoe stitch
-def init_stitcher(vid_stitch_en,**settings):
+def init_stitcher(vid_stitch_en,**settings_stitcher):
     if vid_stitch_en == True:
-        return VideoStitcher(**settings)
+        return VideoStitcher(**settings_stitcher)
     else:
-        return Stitcher(**settings)
+        return Stitcher(**settings_stitcher)
 
 
 
-def sw_contrast_brightness(opt,imgs_in):
+def sw_contrast_brightness(imgs_in,**settings):
     # Disabled
-    if opt == 0:
+    if settings["sw_con_bright_en"] == 0:
         return imgs_in
     # Two contranst brightness functions
     imgs_out = []
     for img in imgs_in:
-        if opt == 1:
+        if settings["sw_con_bright_en"] == 1:
             # Option 1
             #alpha = 2.0 # Contrast control
             #beta = 10 # Brightness control
             alpha = 3.0 # Contrast control
             beta = -100 # Brightness control
             imgs_out.append(cv2.convertScaleAbs(img, alpha=alpha, beta=beta))
-        elif opt == 2:
+        elif settings["sw_con_bright_en"] == 2:
             # Option 2
             #contrast = 2 # Contrast control ( 0 to 127)
             #brightness = 0 # Brightness control (0-100)
@@ -178,15 +182,15 @@ def sw_contrast_brightness(opt,imgs_in):
             brightness = 0 # Brightness control (0-100)
             imgs_out.append(cv2.addWeighted(img, contrast, img, 0, brightness))
         else:
-            print("inspect.stack()[0][3]: Wrong option: "+str(opt))
+            print("inspect.stack()[0][3]: Wrong option: "+str(settings["sw_con_bright_en"]))
             sys.exit(1)
     return imgs_out       
 
 # Init Camera
-init_get_imgs(cam_en)
+init_get_imgs(**settings_input)
 
 # Init stitcher
-stitcher = init_stitcher(vid_stitch_en,**settings)
+stitcher = init_stitcher(settings_input["vid_stitch_en"],**settings_stitcher)
 
 # Set sampling timers
 st = sampling_timers.sampling_timers()
@@ -199,22 +203,20 @@ st.add("stitch",4)
 #print("Print dict:")
 #print(stitcher.__dict__)
 #print("Print dict setting:")
-#print(stitcher.settings)
+#print(stitcher.settings_stitcher)
 #print("Print dict setting:")
-#print(stitcher.settings["blender_type"])
-#stitcher.settings["blender_type"] = "no"
-#print(stitcher.settings["blender_type"])
-#print(stitcher.settings["blender_type"])
+#print(stitcher.settings_stitcher["blender_type"])
+#stitcher.settings_stitcher["blender_type"] = "no"
+#print(stitcher.settings_stitcher["blender_type"])
+#print(stitcher.settings_stitcher["blender_type"])
 
 
-sw_con_bright_en = 1
-finder_lock = False
 
 
 
 # First panorama will set registration
-imgs = get_imgs(cam_en,image_paths)
-imgs = sw_contrast_brightness(sw_con_bright_en,imgs)
+imgs = get_imgs(**settings_input)
+imgs = sw_contrast_brightness(imgs,**settings_input)
 stitch_success = True
 try:
     panorama = stitcher.stitch(imgs)
@@ -245,10 +247,10 @@ while True:
     st.start("main")
     # Stitch images
     imgs = []
-    imgs = get_imgs(cam_en,image_paths)
-    imgs = sw_contrast_brightness(sw_con_bright_en,imgs)
+    imgs = get_imgs(**settings_input)
+    imgs = sw_contrast_brightness(imgs,**settings_input)
     st.start("stitch")
-    panorama = stitcher.stitch(imgs,finder_lock)
+    panorama = stitcher.stitch(imgs,settings_input["finder_lock"])
     st.stop("stitch")
     # Show
     cv2.imshow('final',panorama)
@@ -257,7 +259,7 @@ while True:
     if waitkey_in == ord('q'): # Exit
         sys.exit()
     if waitkey_in == ord('r'): # Recalc stitch registration
-        stitcher = init_stitcher(vid_stitch_en,**settings)
+        stitcher = init_stitcher(settings_input["vid_stitch_en"],**settings_stitcher)
         panorama = stitcher.stitch(imgs)
         cv2.destroyAllWindows()
         cv2.namedWindow('final', cv2.WINDOW_NORMAL)
@@ -279,11 +281,11 @@ while True:
     if waitkey_in == ord('g'): # Finder OFF
         stitcher.seam_finder = SeamFinder("no")
     if waitkey_in == ord('h'): # Finder Lock
-        if cam_en == True:
-            if finder_lock == False:
-                finder_lock = True
+        if settings_input["cam_en"] == True:
+            if settings_input["finder_lock == False"]:
+                settings_input["finder_lock"] = True
             else:
-                finder_lock = False
+                settings_input["finder_lock"] = False
     if waitkey_in == ord('t'): # Compesator ON
         stitcher.compensator = ExposureErrorCompensator()
     if waitkey_in == ord('y'): # Compensator OFF
@@ -293,10 +295,10 @@ while True:
     if waitkey_in == ord('n'): # Blender OFF
         stitcher.blender = Blender("no")
     if waitkey_in == ord('m'): # Change constrast mode
-        sw_con_bright_en = (sw_con_bright_en + 1) % 3
-    # Print time
-    label_list = ["fps_curr","fps_mean"]
-    #st.print_pretty(False,label_list)
+        settings["sw_con_bright_en"] = (settings["sw_con_bright_en"] + 1) % 3
+    if waitkey_in == ord('i'): # Print Info: FPS   
+        label_list = ["fps_curr","fps_mean"]
+        st.print_pretty(False,label_list)
 
 
 
