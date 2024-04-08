@@ -211,9 +211,6 @@ st.add("stitch",4)
 #print(stitcher.settings_stitcher["blender_type"])
 
 
-
-
-
 # First panorama will set registration
 imgs = get_imgs(**settings_input)
 imgs = sw_contrast_brightness(imgs,**settings_input)
@@ -267,47 +264,54 @@ while True:
         cv2.imshow('final',panorama)
         cv2.waitKey(1)
     if waitkey_in == ord('c'): # Crop on/off
-        if stitcher.cropper.do_crop == True:
-            stitcher.cropper = Cropper(False)
-        else:
+        if settings_stitcher["crop"] == False:
             stitcher.cropper = Cropper(True)
+            settings_stitcher["crop"] = stitcher.DEFAULT_SETTINGS["crop"]
+        else:
+            stitcher.cropper = Cropper(False)
+            settings_stitcher["crop"] = True
+        # Restart window
         cv2.destroyAllWindows()
         cv2.namedWindow('final', cv2.WINDOW_NORMAL)
         cv2.setWindowProperty('final', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         cv2.imshow('final',panorama)
         cv2.waitKey(1)
-    if waitkey_in == ord('f'): # Finder ON
-        stitcher.seam_finder = SeamFinder()
-    if waitkey_in == ord('g'): # Finder OFF
-        stitcher.seam_finder = SeamFinder("no")
-    if waitkey_in == ord('h'): # Finder Lock
+    if waitkey_in == ord('f'): # Finder ON/OFF
+        if settings_stitcher["finder"] == "no":
+            stitcher.seam_finder = SeamFinder(stitcher.DEFAULT_SETTINGS["finder"])
+            settings_stitcher["finder"] = stitcher.DEFAULT_SETTINGS["finder"]
+        else:
+            stitcher.seam_finder = SeamFinder("no")
+            settings_stitcher["finder"] = "no"
+    if waitkey_in == ord('g'): # Finder Lock
         if settings_input["cam_en"] == True:
             if settings_input["finder_lock == False"]:
                 settings_input["finder_lock"] = True
             else:
                 settings_input["finder_lock"] = False
-    if waitkey_in == ord('t'): # Compesator ON
-        stitcher.compensator = ExposureErrorCompensator()
-    if waitkey_in == ord('y'): # Compensator OFF
-        stitcher.compensator = ExposureErrorCompensator("no")
-    if waitkey_in == ord('b'): # Blender ON
-        stitcher.blender = Blender("multiband",1)
-    if waitkey_in == ord('n'): # Blender OFF
-        stitcher.blender = Blender("no")
+    if waitkey_in == ord('t'): # Compesator ON/OFF
+        if settings_stitcher["compensator"] == "no":
+            stitcher.compensator = ExposureErrorCompensator(stitcher.DEFAULT_SETTINGS["compensator"])
+            settings_stitcher["compensator"] = stitcher.DEFAULT_SETTINGS["compensator"]
+        else:
+            stitcher.compensator = ExposureErrorCompensator("no")
+            settings_stitcher["compensator"] = "no"
+    if waitkey_in == ord('b'): # Blender ON/OFF
+        if settings_stitcher["blender_type"] == "no":
+            stitcher.blender = Blender(stitcher.DEFAULT_SETTINGS["blender_type"],stitcher.DEFAULT_SETTINGS["blend_strength"])
+            settings_stitcher["blender_type"] = stitcher.DEFAULT_SETTINGS["blender_type"]
+        else:
+            stitcher.blender = Blender("no")
+            settings_stitcher["blender_type"] = "no"
     if waitkey_in == ord('m'): # Change constrast mode
-        settings["sw_con_bright_en"] = (settings["sw_con_bright_en"] + 1) % 3
+        settings_input["sw_con_bright_en"] = (settings_input["sw_con_bright_en"] + 1) % 3
     if waitkey_in == ord('i'): # Print Info: FPS   
         label_list = ["fps_curr","fps_mean"]
         st.print_pretty(False,label_list)
 
 
 
-# - Add global configuration file
-# - Add definition for setting imshow
+# - Add definition for setting imshow -> Also add the debug window if stithing fails
 # - Add SW contrast/brightness handlers
-# - Disable/Enable SW contrast/brightness
-# - Enable/disable crop -> Also update args!
 # - Add calibration handler
 # - Store/Reload registration
-# - Find a way to enable compensator/blender/composition  -> Also update args!
-# - Can finder region be locked?
