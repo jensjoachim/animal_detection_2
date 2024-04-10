@@ -15,6 +15,9 @@ import sys
 import os
 import inspect
 
+
+import pickle
+
 # Get root directory of project to import modules
 parent_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 sys.path.insert(0,parent_dir)
@@ -105,6 +108,7 @@ class VideoStitcher(Stitcher):
         )
         self.set_masks(masks)
         imgs = self.compensate_exposure_errors(corners, imgs)
+        # Try this later for time optimization
         #if lock_seam_mask == False:
         #    seam_masks = self.resize_seam_masks(seam_masks)
         #    self.seam_masks_resize = seam_masks
@@ -125,8 +129,8 @@ def init_get_imgs(**settings):
         time.sleep(0.5)
         picam2 = Picamera2(0)
         time.sleep(0.5)
-        picam1.configure(picam1.create_preview_configuration(main={"format": 'RGB888', "size": cam_dim},transform=Transform(hflip=True,vflip=True)))
-        picam2.configure(picam2.create_preview_configuration(main={"format": 'RGB888', "size": cam_dim},transform=Transform(hflip=True,vflip=True)))
+        picam1.configure(picam1.create_preview_configuration(main={"format": 'RGB888', "size": settings["cam_dim"]},transform=Transform(hflip=True,vflip=True)))
+        picam2.configure(picam2.create_preview_configuration(main={"format": 'RGB888', "size": settings["cam_dim"]},transform=Transform(hflip=True,vflip=True)))
         picam2.set_controls({"AfMode": controls.AfModeEnum.Manual, "LensPosition": 0.0})
         picam2.set_controls({"AfMode": controls.AfModeEnum.Manual, "LensPosition": 0.0})
         #picam1.set_controls({"AfMode": controls.AfModeEnum.Continuous, "AfSpeed": controls.AfSpeedEnum.Fast})
@@ -202,13 +206,8 @@ st.add("stitch",4)
 #print(dir(stitcher))
 #print("Print dict:")
 #print(stitcher.__dict__)
-#print("Print dict setting:")
-#print(stitcher.settings_stitcher)
-#print("Print dict setting:")
-#print(stitcher.settings_stitcher["blender_type"])
-#stitcher.settings_stitcher["blender_type"] = "no"
-#print(stitcher.settings_stitcher["blender_type"])
-#print(stitcher.settings_stitcher["blender_type"])
+
+
 
 
 # First panorama will set registration
@@ -232,6 +231,45 @@ if stitch_success == False:
             waitkey_in = cv2.waitKey(1) & 0xFF
             if waitkey_in == ord('q'): # Exit
                 sys.exit()
+
+
+# DGB
+print("Print cameras:")
+print(stitcher.cameras)
+print("Print cameras:")
+print(stitcher.cameras[0])
+st_cam0 = stitcher.cameras[0]
+print(dir(st_cam0))
+#print("Print cameras attributes:")
+#print(st_cam0.aspect)
+#print(st_cam0.focal)
+#print(st_cam0.ppx)
+#print(st_cam0.ppy)
+#print(st_cam0.R)
+#print(st_cam0.t)
+print("Print cameras attributes 2:")
+attr_data_list = ["aspect","focal","ppx","ppy","R","t"]
+attr_data_dict = {}
+for attr in attr_data_list:
+    #print("%s = %r" % (attr, getattr(st_cam0, attr)))
+    attr_data_dict[attr] = getattr(st_cam0, attr)
+for keys, value in attr_data_dict.items():
+   print(keys+": "+str(value))
+
+file = open('registration', 'wb')
+pickle.dump(attr_data_dict, file)
+
+new_cam_param = cv2.detail.CameraParams()
+for keys, value in attr_data_dict.items():
+    setattr(new_cam_param,keys,value)
+
+#stitcher.cameras[0] = new_cam_para
+stitcher.cameras = (new_cam_param,) + stitcher.cameras[1:]
+
+print("Print cameras:")
+print(stitcher.cameras)
+
+#sys.exit()
     
 # Show first image
 cv2.namedWindow('final', cv2.WINDOW_NORMAL)
@@ -263,6 +301,11 @@ while True:
         cv2.setWindowProperty('final', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         cv2.imshow('final',panorama)
         cv2.waitKey(1)
+    if waitkey_in == ord('s'): # Save registration
+        #with open("registration.txt", "wb") as file:
+        #    pickle.dump(stitcher, file)
+        #cloudpickle.dumps(stitcher)
+        print("Function not implemented")
     if waitkey_in == ord('c'): # Crop on/off
         if settings_stitcher["crop"] == False:
             stitcher.cropper = Cropper(True)
@@ -285,7 +328,7 @@ while True:
             settings_stitcher["finder"] = "no"
     if waitkey_in == ord('g'): # Finder Lock
         if settings_input["cam_en"] == True:
-            if settings_input["finder_lock == False"]:
+            if settings_input["finder_lock"] == False:
                 settings_input["finder_lock"] = True
             else:
                 settings_input["finder_lock"] = False
@@ -315,3 +358,4 @@ while True:
 # - Add SW contrast/brightness handlers
 # - Add calibration handler
 # - Store/Reload registration
+
