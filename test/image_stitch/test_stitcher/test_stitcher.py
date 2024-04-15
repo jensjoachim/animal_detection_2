@@ -220,7 +220,7 @@ except:
     stitch_success = False
     print("Stitching failed!")
 
-# If stitching failed opne images
+# If stitching failed open images
 if stitch_success == False:
     for i in range(len(imgs)):
         cv2.namedWindow("img_"+str(i), cv2.WINDOW_NORMAL)
@@ -233,45 +233,43 @@ if stitch_success == False:
                 sys.exit()
 
 
-# DGB
 print("Print cameras:")
-#print(stitcher.cameras)
-#print("Print cameras:")
-#print(stitcher.cameras[0])
-#print(dir(stitcher.cameras[0]))
-#print("Print cameras attributes:")
-#print(stitcher.cameras[0].aspect)
-#print(stitcher.cameras[0].focal)
-#print(stitcher.cameras[0].ppx)
-#print(stitcher.cameras[0].ppy)
-#print(stitcher.cameras[0].R)
-#print(stitcher.cameras[0].t)
+print(stitcher.cameras)
 
-print("Print cameras attributes:")
-attr_data_list = ["aspect","focal","ppx","ppy","R","t"]
-attr_data_dict = {}
-for attr in attr_data_list:
-    #print("%s = %r" % (attr, getattr(stitcher.cameras[0], attr)))
-    attr_data_dict[attr] = getattr(stitcher.cameras[0], attr)
-for keys, value in attr_data_dict.items():
-   print(keys+": "+str(value))
+print("Gather camera data:")
+attr_data_dict_index = ["aspect","focal","ppx","ppy","R","t"]
+attr_data_dict_list = []
+for i in range(len(stitcher.cameras)):
+    attr_data_dict = {}
+    for attr in attr_data_dict_index:
+        attr_data_dict[attr] = getattr(stitcher.cameras[i], attr)
+    attr_data_dict_list.append(attr_data_dict)
 
-#file = open('registration', 'wb')
-#pickle.dump(attr_data_dict, file)
+# Print camera data
+print("Camera data to be stored:")
+print(attr_data_dict_list)
 
+# Store camera data
 with open('registration', 'wb') as file:
-    pickle.dump(attr_data_dict, file)
+    pickle.dump(attr_data_dict_list, file)
 
+# Load camera data
 with open('registration', 'rb') as file:
-    attr_data_dict_in = pickle.load(file)
+    attr_data_dict_list_in = pickle.load(file)
 
-new_cam_param = cv2.detail.CameraParams()
-#for keys, value in attr_data_dict.items():
-for keys, value in attr_data_dict_in.items():
-    setattr(new_cam_param,keys,value)
+print("Camera data loaded:")
+print(attr_data_dict_list_in)
 
-#stitcher.cameras[0] = new_cam_para
-stitcher.cameras = (new_cam_param,) + stitcher.cameras[1:]
+# Make tuple of CameraParams
+new_cam_param_tuple = ()
+for i in range(len(attr_data_dict_list_in)):
+    new_cam_param = cv2.detail.CameraParams()
+    for keys, value in attr_data_dict_list_in[i].items():
+        setattr(new_cam_param,keys,value)
+    new_cam_param_tuple = new_cam_param_tuple + (new_cam_param,)
+
+# Overwrite tupe in stitcher
+stitcher.cameras = new_cam_param_tuple
 
 print("Print cameras:")
 print(stitcher.cameras)
