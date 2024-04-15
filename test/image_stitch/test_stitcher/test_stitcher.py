@@ -120,6 +120,50 @@ class VideoStitcher(Stitcher):
         self.blend_images(imgs, seam_masks, corners)
         return self.create_final_panorama()
 
+    def store_registration(self,print_en=False):
+        if not self.cameras_registered:
+            print("Camera registration not stored!")
+        else:    
+            # Gather data
+            attr_data_dict_index = ["aspect","focal","ppx","ppy","R","t"]
+            attr_data_dict_list = []
+            for i in range(len(stitcher.cameras)):
+                attr_data_dict = {}
+                for attr in attr_data_dict_index:
+                    attr_data_dict[attr] = getattr(stitcher.cameras[i], attr)
+                attr_data_dict_list.append(attr_data_dict)
+            # Print camera data
+            if print_en:
+                print("Camera data to be stored:")
+                print(attr_data_dict_list)
+            # Store camera data
+            with open('registration', 'wb') as file:
+                pickle.dump(attr_data_dict_list, file)
+            # Done
+            print("Camera registration stored!")
+
+    def load_registration(self,print_en=False):
+        # Load camera data
+        with open('registration', 'rb') as file:
+            attr_data_dict_list_in = pickle.load(file)
+        if print_en:
+            print("Camera data loaded:")
+            print(attr_data_dict_list_in)
+        # Make tuple of CameraParams
+        new_cam_param_tuple = ()
+        for i in range(len(attr_data_dict_list_in)):
+            new_cam_param = cv2.detail.CameraParams()
+            for keys, value in attr_data_dict_list_in[i].items():
+                setattr(new_cam_param,keys,value)
+            new_cam_param_tuple = new_cam_param_tuple + (new_cam_param,)
+        # Overwrite tupe in stitcher
+        self.cameras = new_cam_param_tuple
+        # Set registration flag
+        self.cameras_registered = True
+        # Done
+        print("Camera registration loaded")
+
+
 # Init get image function
 def init_get_imgs(**settings):
     if settings["cam_en"] == True:
@@ -231,50 +275,6 @@ if stitch_success == False:
             waitkey_in = cv2.waitKey(1) & 0xFF
             if waitkey_in == ord('q'): # Exit
                 sys.exit()
-
-
-print("Print cameras:")
-print(stitcher.cameras)
-
-print("Gather camera data:")
-attr_data_dict_index = ["aspect","focal","ppx","ppy","R","t"]
-attr_data_dict_list = []
-for i in range(len(stitcher.cameras)):
-    attr_data_dict = {}
-    for attr in attr_data_dict_index:
-        attr_data_dict[attr] = getattr(stitcher.cameras[i], attr)
-    attr_data_dict_list.append(attr_data_dict)
-
-# Print camera data
-print("Camera data to be stored:")
-print(attr_data_dict_list)
-
-# Store camera data
-with open('registration', 'wb') as file:
-    pickle.dump(attr_data_dict_list, file)
-
-# Load camera data
-with open('registration', 'rb') as file:
-    attr_data_dict_list_in = pickle.load(file)
-
-print("Camera data loaded:")
-print(attr_data_dict_list_in)
-
-# Make tuple of CameraParams
-new_cam_param_tuple = ()
-for i in range(len(attr_data_dict_list_in)):
-    new_cam_param = cv2.detail.CameraParams()
-    for keys, value in attr_data_dict_list_in[i].items():
-        setattr(new_cam_param,keys,value)
-    new_cam_param_tuple = new_cam_param_tuple + (new_cam_param,)
-
-# Overwrite tupe in stitcher
-stitcher.cameras = new_cam_param_tuple
-
-print("Print cameras:")
-print(stitcher.cameras)
-
-#sys.exit()
     
 # Show first image
 cv2.namedWindow('final', cv2.WINDOW_NORMAL)
@@ -306,11 +306,10 @@ while True:
         cv2.setWindowProperty('final', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         cv2.imshow('final',panorama)
         cv2.waitKey(1)
-    if waitkey_in == ord('s'): # Save registration
-        #with open("registration.txt", "wb") as file:
-        #    pickle.dump(stitcher, file)
-        #cloudpickle.dumps(stitcher)
-        print("Function not implemented")
+    if waitkey_in == ord('s'): # Store camera registration
+        stitcher.store_registration()
+    if waitkey_in == ord('x'): # Load camera registration
+        stitcher.load_registration()
     if waitkey_in == ord('c'): # Crop on/off
         if settings_stitcher["crop"] == False:
             stitcher.cropper = Cropper(True)
@@ -362,5 +361,5 @@ while True:
 # - Add definition for setting imshow -> Also add the debug window if stithing fails
 # - Add SW contrast/brightness handlers
 # - Add calibration handler
-# - Store/Reload registration
+# - Store/Reload registration -> Also load settings for stitcher -> Remeber to set setting when changed
 
