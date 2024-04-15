@@ -235,32 +235,39 @@ if stitch_success == False:
 
 # DGB
 print("Print cameras:")
-print(stitcher.cameras)
-print("Print cameras:")
-print(stitcher.cameras[0])
-st_cam0 = stitcher.cameras[0]
-print(dir(st_cam0))
+#print(stitcher.cameras)
+#print("Print cameras:")
+#print(stitcher.cameras[0])
+#print(dir(stitcher.cameras[0]))
 #print("Print cameras attributes:")
-#print(st_cam0.aspect)
-#print(st_cam0.focal)
-#print(st_cam0.ppx)
-#print(st_cam0.ppy)
-#print(st_cam0.R)
-#print(st_cam0.t)
-print("Print cameras attributes 2:")
+#print(stitcher.cameras[0].aspect)
+#print(stitcher.cameras[0].focal)
+#print(stitcher.cameras[0].ppx)
+#print(stitcher.cameras[0].ppy)
+#print(stitcher.cameras[0].R)
+#print(stitcher.cameras[0].t)
+
+print("Print cameras attributes:")
 attr_data_list = ["aspect","focal","ppx","ppy","R","t"]
 attr_data_dict = {}
 for attr in attr_data_list:
-    #print("%s = %r" % (attr, getattr(st_cam0, attr)))
-    attr_data_dict[attr] = getattr(st_cam0, attr)
+    #print("%s = %r" % (attr, getattr(stitcher.cameras[0], attr)))
+    attr_data_dict[attr] = getattr(stitcher.cameras[0], attr)
 for keys, value in attr_data_dict.items():
    print(keys+": "+str(value))
 
-file = open('registration', 'wb')
-pickle.dump(attr_data_dict, file)
+#file = open('registration', 'wb')
+#pickle.dump(attr_data_dict, file)
+
+with open('registration', 'wb') as file:
+    pickle.dump(attr_data_dict, file)
+
+with open('registration', 'rb') as file:
+    attr_data_dict_in = pickle.load(file)
 
 new_cam_param = cv2.detail.CameraParams()
-for keys, value in attr_data_dict.items():
+#for keys, value in attr_data_dict.items():
+for keys, value in attr_data_dict_in.items():
     setattr(new_cam_param,keys,value)
 
 #stitcher.cameras[0] = new_cam_para
