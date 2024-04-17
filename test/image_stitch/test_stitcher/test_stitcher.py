@@ -29,8 +29,8 @@ from modules import sampling_timers
 
 settings_input = {}
 # Set option to use rpi camera of set of pictures
-#settings_input["cam_en"]        = True
-settings_input["cam_en"]       = False
+settings_input["cam_en"]        = True
+#settings_input["cam_en"]       = False
 #settings_input["cam_dim"]       = (800,600)
 settings_input["cam_dim"]       = (1920, 1080)
 #settings_input["cam_dim"]       = (4608,2592)
@@ -108,12 +108,6 @@ class VideoStitcher(Stitcher):
         )
         self.set_masks(masks)
         imgs = self.compensate_exposure_errors(corners, imgs)
-        # Try this later for time optimization
-        #if lock_seam_mask == False:
-        #    seam_masks = self.resize_seam_masks(seam_masks)
-        #    self.seam_masks_resize = seam_masks
-        #else:
-        #    seam_masks = self.seam_masks_resize
         seam_masks = self.resize_seam_masks(seam_masks)
 
         self.initialize_composition(corners, sizes)
@@ -245,71 +239,72 @@ st = sampling_timers.sampling_timers()
 st.add("main",4)
 st.add("stitch",4)
 
-# Debug
+## Debug
 #print("Print dir:")
 #print(dir(stitcher))
 #print("Print dict:")
 #print(stitcher.__dict__)
+#sys.exit(1)
 
-
-
-
-# First panorama will set registration
-imgs = get_imgs(**settings_input)
-imgs = sw_contrast_brightness(imgs,**settings_input)
-stitch_success = True
-try:
-    panorama = stitcher.stitch(imgs)
-except:
-    stitch_success = False
-    print("Stitching failed!")
-
-# If stitching failed open images
-if stitch_success == False:
-    for i in range(len(imgs)):
-        cv2.namedWindow("img_"+str(i), cv2.WINDOW_NORMAL)
-        cv2.setWindowProperty("img_"+str(i), cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-    while True:
-        for i in range(len(imgs)):
-            cv2.imshow("img_"+str(i),imgs[i])
-            waitkey_in = cv2.waitKey(1) & 0xFF
-            if waitkey_in == ord('q'): # Exit
-                sys.exit()
-    
-# Show first image
-cv2.namedWindow('final', cv2.WINDOW_NORMAL)
-cv2.setWindowProperty('final', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-cv2.imshow('final',panorama)
-cv2.waitKey(1)
+# On first loop start stitching and open image windows
+init_stitch_success = True
+restart_imshow_window = True
 
 # Run loop
 while True:
     st.start("main")
-    # Stitch images
+    # Get images
     imgs = []
     imgs = get_imgs(**settings_input)
     imgs = sw_contrast_brightness(imgs,**settings_input)
-    st.start("stitch")
-    panorama = stitcher.stitch(imgs,settings_input["finder_lock"])
-    st.stop("stitch")
-    # Show
-    cv2.imshow('final',panorama)
+    # Try to stitch images
+    if init_stitch_success == True:
+        try:
+            st.start("stitch")
+            panorama = stitcher.stitch(imgs,settings_input["finder_lock"])
+            st.stop("stitch")
+        except:
+            init_stitch_success = False
+            print("Stitching failed!")
+    # Show panorama image or input images in cases init stitch fails
+    if init_stitch_success == False:
+        # If stitching failed open images
+        if restart_imshow_window == True:
+            for i in range(len(imgs)):
+                cv2.namedWindow("img_"+str(i), cv2.WINDOW_NORMAL)
+                cv2.setWindowProperty("img_"+str(i), cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        for i in range(len(imgs)):
+            cv2.imshow("img_"+str(i),imgs[i])
+    else:        
+        # Show first panorama
+        if restart_imshow_window == True:
+            cv2.namedWindow('final', cv2.WINDOW_NORMAL)
+            cv2.setWindowProperty('final', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+        cv2.imshow('final',panorama)
+    restart_imshow_window = False
     # Handle keybaord input
     waitkey_in = cv2.waitKey(1) & 0xFF
     if waitkey_in == ord('q'): # Exit
         sys.exit()
     if waitkey_in == ord('r'): # Recalc stitch registration
         stitcher = init_stitcher(settings_input["vid_stitch_en"],**settings_stitcher)
-        panorama = stitcher.stitch(imgs)
         cv2.destroyAllWindows()
-        cv2.namedWindow('final', cv2.WINDOW_NORMAL)
-        cv2.setWindowProperty('final', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-        cv2.imshow('final',panorama)
-        cv2.waitKey(1)
+        init_stitch_success = True
+        restart_imshow_window = True
     if waitkey_in == ord('s'): # Store camera registration
         stitcher.store_registration()
     if waitkey_in == ord('x'): # Load camera registration
+        #stitcher.load_registration()
+        
+        stitcher = init_stitcher(settings_input["vid_stitch_en"],**settings_stitcher)
+        try:
+            panorama = stitcher.stitch(imgs,settings_input["finder_lock"])
+        except:
+            print("Stitching failed! DBG")
         stitcher.load_registration()
+        cv2.destroyAllWindows()
+        init_stitch_success = True
+        restart_imshow_window = True
     if waitkey_in == ord('c'): # Crop on/off
         if settings_stitcher["crop"] == False:
             stitcher.cropper = Cropper(True)
@@ -319,10 +314,7 @@ while True:
             settings_stitcher["crop"] = True
         # Restart window
         cv2.destroyAllWindows()
-        cv2.namedWindow('final', cv2.WINDOW_NORMAL)
-        cv2.setWindowProperty('final', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-        cv2.imshow('final',panorama)
-        cv2.waitKey(1)
+        restart_imshow_window = True
     if waitkey_in == ord('f'): # Finder ON/OFF
         if settings_stitcher["finder"] == "no":
             stitcher.seam_finder = SeamFinder(stitcher.DEFAULT_SETTINGS["finder"])
@@ -358,7 +350,6 @@ while True:
 
 
 
-# - Add definition for setting imshow -> Also add the debug window if stithing fails
 # - Add SW contrast/brightness handlers
 # - Add calibration handler
 # - Store/Reload registration -> Also load settings for stitcher -> Remeber to set setting when changed
