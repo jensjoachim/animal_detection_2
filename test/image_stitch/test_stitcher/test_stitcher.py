@@ -32,8 +32,9 @@ settings_input = {}
 settings_input["cam_en"]        = True
 #settings_input["cam_en"]       = False
 #settings_input["cam_dim"]       = (800,600)
-settings_input["cam_dim"]       = (1920, 1080)
-#settings_input["cam_dim"]       = (4608,2592)
+#settings_input["cam_dim"]       = (1067,600)
+#settings_input["cam_dim"]       = (1920, 1080)
+settings_input["cam_dim"]       = (4608,2592)
 settings_input["image_paths"]   = ['../o_0.png','../o_1.png','../o_2.png']
 # Set to use image stitching or video stitcking, only calculating registration data once
 settings_input["vid_stitch_en"] = True
@@ -78,10 +79,16 @@ class VideoStitcher(Stitcher):
         if not self.cameras_registered:
             print("Camera registration: Starting")
             features = self.find_features(imgs, feature_masks)
+            print("Camera registration: Step 1")
+            print(features)
             matches = self.match_features(features)
+            print("Camera registration: Step 2")
             imgs, features, matches = self.subset(imgs, features, matches)
+            print("Camera registration: Step 3")
             cameras = self.estimate_camera_parameters(features, matches)
+            print("Camera registration: Step 4")
             cameras = self.refine_camera_parameters(features, matches, cameras)
+            print("Camera registration: Step 5")
             cameras = self.perform_wave_correction(cameras)
             self.estimate_scale(cameras)
             self.cameras = cameras
@@ -136,7 +143,7 @@ class VideoStitcher(Stitcher):
             # Done
             print("Camera registration stored!")
 
-    def load_registration(self,print_en=False):
+    def load_registration(self,print_en=True):
         # Load camera data
         with open('registration', 'rb') as file:
             attr_data_dict_list_in = pickle.load(file)
@@ -152,6 +159,8 @@ class VideoStitcher(Stitcher):
             new_cam_param_tuple = new_cam_param_tuple + (new_cam_param,)
         # Overwrite tupe in stitcher
         self.cameras = new_cam_param_tuple
+        # Extra
+        self.estimate_scale(self.cameras)
         # Set registration flag
         self.cameras_registered = True
         # Done
@@ -222,6 +231,7 @@ def sw_contrast_brightness(imgs_in,**settings):
             #brightness = 0 # Brightness control (0-100)
             contrast = 2 # Contrast control ( 0 to 127)
             brightness = 0 # Brightness control (0-100)
+            brightness = 100
             imgs_out.append(cv2.addWeighted(img, contrast, img, 0, brightness))
         else:
             print("inspect.stack()[0][3]: Wrong option: "+str(settings["sw_con_bright_en"]))
@@ -297,12 +307,15 @@ while True:
         #stitcher.load_registration()
         
         stitcher = init_stitcher(settings_input["vid_stitch_en"],**settings_stitcher)
-        try:
-            panorama = stitcher.stitch(imgs,settings_input["finder_lock"])
-        except:
-            print("Stitching failed! DBG")
+        #try:
+        #    panorama = stitcher.stitch(imgs,settings_input["finder_lock"])
+        #except:
+        #    print("Stitching failed! DBG")
         stitcher.load_registration()
         cv2.destroyAllWindows()
+
+        panorama = stitcher.stitch(imgs,settings_input["finder_lock"])
+        
         init_stitch_success = True
         restart_imshow_window = True
     if waitkey_in == ord('c'): # Crop on/off
