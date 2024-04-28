@@ -31,10 +31,13 @@ settings_input = {}
 # Set option to use rpi camera of set of pictures
 settings_input["cam_en"]        = True
 #settings_input["cam_en"]       = False
-#settings_input["cam_dim"]       = (800,600)
-#settings_input["cam_dim"]       = (1067,600)
-#settings_input["cam_dim"]       = (1920, 1080)
-settings_input["cam_dim"]       = (4608,2592)
+#settings_input["cam_dim"]       = (576,324)    # registration_576,324     11.2
+#settings_input["cam_dim"]       = (768,432)    # registration_76xx432      8.2
+#settings_input["cam_dim"]       = (960,540)    # registration_960x540      7.5
+settings_input["cam_dim"]       = (1152,648)   # registration_1920x1080    6.5
+#settings_input["cam_dim"]       = (1920,1080)  # registration_1920x1080    3.6
+#settings_input["cam_dim"]       = (2304,1296)  # registration_1920x1080    2.5
+#settings_input["cam_dim"]       = (4608,2592)  # registration_1920x1080    0.6
 settings_input["image_paths"]   = ['../o_0.png','../o_1.png','../o_2.png']
 # Set to use image stitching or video stitcking, only calculating registration data once
 settings_input["vid_stitch_en"] = True
@@ -176,9 +179,9 @@ def init_get_imgs(**settings):
         time.sleep(0.5)
         picam2 = Picamera2(0)
         time.sleep(0.5)
-        picam1.configure(picam1.create_preview_configuration(main={"format": 'RGB888', "size": settings["cam_dim"]},transform=Transform(hflip=True,vflip=True)))
-        picam2.configure(picam2.create_preview_configuration(main={"format": 'RGB888', "size": settings["cam_dim"]},transform=Transform(hflip=True,vflip=True)))
-        picam2.set_controls({"AfMode": controls.AfModeEnum.Manual, "LensPosition": 0.0})
+        picam1.configure(picam1.create_preview_configuration(raw={"size":(4608,2592)},main={"format": 'RGB888', "size": settings["cam_dim"]},transform=Transform(hflip=True,vflip=True)))
+        picam2.configure(picam2.create_preview_configuration(raw={"size":(4608,2592)},main={"format": 'RGB888', "size": settings["cam_dim"]},transform=Transform(hflip=True,vflip=True)))
+        picam1.set_controls({"AfMode": controls.AfModeEnum.Manual, "LensPosition": 0.0})
         picam2.set_controls({"AfMode": controls.AfModeEnum.Manual, "LensPosition": 0.0})
         #picam1.set_controls({"AfMode": controls.AfModeEnum.Continuous, "AfSpeed": controls.AfSpeedEnum.Fast})
         #picam2.set_controls({"AfMode": controls.AfModeEnum.Continuous, "AfSpeed": controls.AfSpeedEnum.Fast})
@@ -187,6 +190,32 @@ def init_get_imgs(**settings):
         time.sleep(2)
         picam1.capture_array()
         picam2.capture_array()
+
+        metadata = picam1.capture_metadata()
+        print(metadata)
+
+        if False:
+            for i in range(10):
+                picam1.capture_array()
+                picam2.capture_array()
+                picam1.capture_metadata()
+                picam2.capture_metadata()
+                time.sleep(0.1)
+
+            metadata = picam1.capture_metadata()
+            print(metadata)
+            img = picam2.capture_array()
+            print(img.shape)
+                
+            #(buffer, ), metadata = picam1.capture_buffers(["main"])
+            #img = picam2.helpers.make_array(buffer, picam1.camera_configuration()["main"])
+            #print(metadata)
+            #print(img.shape)
+
+            #picam1.stop()
+            #print(picam1.sensor_modes)
+            
+            exit(0)
 
 def get_imgs(**settings):
     imgs = []
@@ -304,18 +333,9 @@ while True:
     if waitkey_in == ord('s'): # Store camera registration
         stitcher.store_registration()
     if waitkey_in == ord('x'): # Load camera registration
-        #stitcher.load_registration()
-        
         stitcher = init_stitcher(settings_input["vid_stitch_en"],**settings_stitcher)
-        #try:
-        #    panorama = stitcher.stitch(imgs,settings_input["finder_lock"])
-        #except:
-        #    print("Stitching failed! DBG")
         stitcher.load_registration()
         cv2.destroyAllWindows()
-
-        panorama = stitcher.stitch(imgs,settings_input["finder_lock"])
-        
         init_stitch_success = True
         restart_imshow_window = True
     if waitkey_in == ord('c'): # Crop on/off
@@ -364,6 +384,7 @@ while True:
 
 
 # - Add SW contrast/brightness handlers
+# - Look at crop function, seems to fail
 # - Add calibration handler
-# - Store/Reload registration -> Also load settings for stitcher -> Remeber to set setting when changed
+# - Store/Reload registration (x) -> Also load settings for stitcher -> Remeber to set setting when changed
 
