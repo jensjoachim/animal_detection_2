@@ -4,6 +4,7 @@ from stitching.cropper import Cropper
 from stitching.seam_finder import SeamFinder
 from stitching.exposure_error_compensator import ExposureErrorCompensator
 from stitching.blender import Blender
+from stitching.warper import Warper
 
 from picamera2 import Picamera2
 from libcamera import Transform
@@ -34,9 +35,9 @@ settings_input["cam_en"]        = True
 #settings_input["cam_dim"]       = (576,324)    # registration_576,324     11.2
 #settings_input["cam_dim"]       = (768,432)    # registration_76xx432      8.2
 #settings_input["cam_dim"]       = (960,540)    # registration_960x540      7.5
-settings_input["cam_dim"]       = (1152,648)   # registration_1920x1080    6.5
+#settings_input["cam_dim"]       = (1152,648)   # registration_1920x1080    6.5
 #settings_input["cam_dim"]       = (1920,1080)  # registration_1920x1080    3.6
-#settings_input["cam_dim"]       = (2304,1296)  # registration_1920x1080    2.5
+settings_input["cam_dim"]       = (2304,1296)  # registration_1920x1080    2.5
 #settings_input["cam_dim"]       = (4608,2592)  # registration_1920x1080    0.6
 settings_input["image_paths"]   = ['../o_0.png','../o_1.png','../o_2.png']
 # Set to use image stitching or video stitcking, only calculating registration data once
@@ -82,16 +83,11 @@ class VideoStitcher(Stitcher):
         if not self.cameras_registered:
             print("Camera registration: Starting")
             features = self.find_features(imgs, feature_masks)
-            print("Camera registration: Step 1")
             print(features)
             matches = self.match_features(features)
-            print("Camera registration: Step 2")
             imgs, features, matches = self.subset(imgs, features, matches)
-            print("Camera registration: Step 3")
             cameras = self.estimate_camera_parameters(features, matches)
-            print("Camera registration: Step 4")
             cameras = self.refine_camera_parameters(features, matches, cameras)
-            print("Camera registration: Step 5")
             cameras = self.perform_wave_correction(cameras)
             self.estimate_scale(cameras)
             self.cameras = cameras
@@ -120,6 +116,11 @@ class VideoStitcher(Stitcher):
         imgs = self.compensate_exposure_errors(corners, imgs)
         seam_masks = self.resize_seam_masks(seam_masks)
 
+        print("corners:")
+        print(corners)
+        print("sizes:")
+        print(sizes)
+        
         self.initialize_composition(corners, sizes)
         self.blend_images(imgs, seam_masks, corners)
         return self.create_final_panorama()
@@ -168,7 +169,7 @@ class VideoStitcher(Stitcher):
         self.cameras_registered = True
         # Done
         print("Camera registration loaded")
-
+        
 
 # Init get image function
 def init_get_imgs(**settings):
@@ -380,6 +381,8 @@ while True:
     if waitkey_in == ord('i'): # Print Info: FPS   
         label_list = ["fps_curr","fps_mean"]
         st.print_pretty(False,label_list)
+    if waitkey_in == ord('l'):
+        stitcher.jjp_test()
 
 
 
