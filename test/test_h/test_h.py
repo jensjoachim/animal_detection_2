@@ -66,12 +66,6 @@ for camera in cameras:
     H = np.matmul(K, R, inv(K))
     R_Kinv = np.matmul(R, inv(K))
     K_Rinv = np.matmul(K, inv(R))
-    
-    
-    #print("camera: "+str(i)+" - K:")
-    #print(K)
-    #print("camera: "+str(i)+" - R:")
-    #print(R)
 
     coord_in = (1152,648)
     print("Coordinate in: "+str(coord_in))
@@ -87,34 +81,3 @@ for camera in cameras:
     print("Coordinate back: "+str(coord_back))
     
    
-
-exit(0)
-
-
-
-h1 = np.float32([[ 8.3780426e-01,  6.3204996e-02, -5.4229981e-01],
-       [-8.6172358e-09,  9.9327654e-01,  1.1576628e-01],
-       [ 5.4597068e-01, -9.6989475e-02,  8.3217132e-01]])
-h2 = np.float32([[ 8.3700734e-01, -7.3004276e-02,  5.4229975e-01],
-       [-1.5363407e-08,  9.9106014e-01,  1.3341632e-01], 
-       [-5.4719174e-01, -1.1167043e-01,  8.2952458e-01]])
-
-print(h1)
-print(h2)
-
-pts = np.float32([[0.5,0.5],[0,0.5]]).reshape(-1,1,2)
-
-pts = np.float32([[0.5,0.5],[0,0],[0,1],[1,0],[1,1]]).reshape(-1,1,2)
-
-pts = np.float32([[0,0],[0.5,0.5],[-0.5,0.5],[-0.5,-0.5],[0.5,-0.5]]).reshape(-1,1,2)
-
-
-pts_h1 = cv2.perspectiveTransform(pts,h1)
-pts_h2 = cv2.perspectiveTransform(pts,h2)
-
-print("pts:")
-print(pts)
-print("pts_h1:")
-print(pts_h1)
-print("pts_h2:")
-print(pts_h2)
