@@ -66,14 +66,16 @@ settings_stitcher = {"detector": "sift", "crop": False, "confidence_threshold": 
 
 
 
+
 class VideoStitcher(Stitcher):
 
-    def initialize_stitcher(self, **kwargs):
+    def initialize_stitcher(self,**kwargs):
         super().initialize_stitcher(**kwargs)
         self.cameras = None
         self.cameras_registered = False
+        self.lock_seam_mask = False
 
-    def stitch(self, images, lock_seam_mask=False, feature_masks=[]):
+    def stitch(self, images, feature_masks=[]):
         self.images = Images.of(
             images, self.medium_megapix, self.low_megapix, self.final_megapix
         )
@@ -101,12 +103,16 @@ class VideoStitcher(Stitcher):
             imgs, masks, corners, sizes
         )
         self.estimate_exposure_errors(corners, imgs, masks)
-        if lock_seam_mask == False:
+        if self.lock_seam_mask == False:   # No lock
             seam_masks = self.find_seam_masks(imgs, corners, masks)
             self.seam_masks = seam_masks
-        else:
-            seam_masks = self.seam_masks
-
+        else:                     # Auto lock
+            try:
+                seam_masks = self.seam_masks
+            except:
+                seam_masks = self.find_seam_masks(imgs, corners, masks)
+                self.seam_masks = seam_masks
+                
         imgs = self.resize_final_resolution()
         imgs, masks, corners, sizes = self.warp_final_resolution(imgs, self.cameras)
         imgs, masks, corners, sizes = self.crop_final_resolution(
@@ -116,20 +122,16 @@ class VideoStitcher(Stitcher):
         imgs = self.compensate_exposure_errors(corners, imgs)
         seam_masks = self.resize_seam_masks(seam_masks)
 
-        print("corners:")
-        print(corners)
-        print("sizes:")
-        print(sizes)
-        
         self.initialize_composition(corners, sizes)
         self.blend_images(imgs, seam_masks, corners)
         return self.create_final_panorama()
 
-    def store_registration(self,print_en=False):
+    def store_registration(self,print_en,settings_stitcher):
         if not self.cameras_registered:
             print("Camera registration not stored!")
-        else:    
-            # Gather data
+        else:
+            dict_pickle = {}
+            # Gather camera data
             attr_data_dict_index = ["aspect","focal","ppx","ppy","R","t"]
             attr_data_dict_list = []
             for i in range(len(stitcher.cameras)):
@@ -137,20 +139,32 @@ class VideoStitcher(Stitcher):
                 for attr in attr_data_dict_index:
                     attr_data_dict[attr] = getattr(stitcher.cameras[i], attr)
                 attr_data_dict_list.append(attr_data_dict)
+            dict_pickle["cameras"] = attr_data_dict_list
             # Print camera data
             if print_en:
                 print("Camera data to be stored:")
                 print(attr_data_dict_list)
-            # Store camera data
+            # Store "finder lock" setting
+            dict_pickle["finder_lock"] = self.lock_seam_mask
+            # Store stitcher setting
+            dict_pickle["settings_stitcher"] = settings_stitcher
+            # Store data
             with open('registration', 'wb') as file:
-                pickle.dump(attr_data_dict_list, file)
+                pickle.dump(dict_pickle, file)
             # Done
             print("Camera registration stored!")
 
-    def load_registration(self,print_en=True):
+    def load_registration(self,print_en,load_settings_en=True):
         # Load camera data
         with open('registration', 'rb') as file:
-            attr_data_dict_list_in = pickle.load(file)
+            dict_pickle = pickle.load(file)
+            attr_data_dict_list_in = dict_pickle["cameras"]
+            lock_seam_mask = dict_pickle["finder_lock"]
+            settings_stitcher = dict_pickle["settings_stitcher"]
+        # Re-init stitcher
+        if load_settings_en:
+            self.initialize_stitcher(**settings_stitcher)
+            self.lock_seam_mask = lock_seam_mask
         if print_en:
             print("Camera data loaded:")
             print(attr_data_dict_list_in)
@@ -273,6 +287,7 @@ init_get_imgs(**settings_input)
 
 # Init stitcher
 stitcher = init_stitcher(settings_input["vid_stitch_en"],**settings_stitcher)
+#stitcher.load_registration(False)
 
 # Set sampling timers
 st = sampling_timers.sampling_timers()
@@ -301,7 +316,7 @@ while True:
     if init_stitch_success == True:
         try:
             st.start("stitch")
-            panorama = stitcher.stitch(imgs,settings_input["finder_lock"])
+            panorama = stitcher.stitch(imgs)
             st.stop("stitch")
         except:
             init_stitch_success = False
@@ -332,14 +347,16 @@ while True:
         init_stitch_success = True
         restart_imshow_window = True
     if waitkey_in == ord('s'): # Store camera registration
-        stitcher.store_registration()
+        stitcher.store_registration(False,settings_stitcher)
     if waitkey_in == ord('x'): # Load camera registration
         stitcher = init_stitcher(settings_input["vid_stitch_en"],**settings_stitcher)
-        stitcher.load_registration()
+        stitcher.load_registration(False)
         cv2.destroyAllWindows()
         init_stitch_success = True
         restart_imshow_window = True
     if waitkey_in == ord('c'): # Crop on/off
+        settings_input["finder_lock"] = False
+        stitcher.lock_seam_mask = False
         if settings_stitcher["crop"] == False:
             stitcher.cropper = Cropper(True)
             settings_stitcher["crop"] = stitcher.DEFAULT_SETTINGS["crop"]
@@ -358,10 +375,12 @@ while True:
             settings_stitcher["finder"] = "no"
     if waitkey_in == ord('g'): # Finder Lock
         if settings_input["cam_en"] == True:
-            if settings_input["finder_lock"] == False:
-                settings_input["finder_lock"] = True
-            else:
+            if settings_input["finder_lock"] == True:
                 settings_input["finder_lock"] = False
+                stitcher.lock_seam_mask = False
+            else:
+                settings_input["finder_lock"] = True
+                stitcher.lock_seam_mask = True
     if waitkey_in == ord('t'): # Compesator ON/OFF
         if settings_stitcher["compensator"] == "no":
             stitcher.compensator = ExposureErrorCompensator(stitcher.DEFAULT_SETTINGS["compensator"])
@@ -383,11 +402,4 @@ while True:
         st.print_pretty(False,label_list)
     if waitkey_in == ord('l'):
         stitcher.jjp_test()
-
-
-
-# - Add SW contrast/brightness handlers
-# - Look at crop function, seems to fail
-# - Add calibration handler
-# - Store/Reload registration (x) -> Also load settings for stitcher -> Remeber to set setting when changed
-
+        
