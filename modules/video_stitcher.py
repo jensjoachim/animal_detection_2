@@ -1,7 +1,9 @@
 from stitching import Stitcher
 from stitching.images import Images
+from stitching.warper import Warper
 import pickle
 import cv2
+import os
 
 class video_stitcher(Stitcher):
  
@@ -58,6 +60,8 @@ class video_stitcher(Stitcher):
         imgs = self.compensate_exposure_errors(corners, imgs)
         seam_masks = self.resize_seam_masks(seam_masks)
 
+        self.warp_point_new(self.cameras)
+        
         self.initialize_composition(corners, sizes)
         self.blend_images(imgs, seam_masks, corners)
         return self.create_final_panorama()
@@ -85,14 +89,14 @@ class video_stitcher(Stitcher):
             # Store stitcher setting
             dict_pickle["settings_stitcher"] = settings_stitcher
             # Store data
-            with open('registration', 'wb') as file:
+            with open(self.search_backward_for_directory("registrations")+"/registration", 'wb') as file:
                 pickle.dump(dict_pickle, file)
             # Done
             print("Camera registration stored!")
 
     def load_registration(self,print_en,load_settings_en=True):
         # Load camera data
-        with open('registration', 'rb') as file:
+        with open(self.search_backward_for_directory("registrations")+"/registration", 'rb') as file:
             dict_pickle = pickle.load(file)
             attr_data_dict_list_in = dict_pickle["cameras"]
             lock_seam_mask = dict_pickle["finder_lock"]
@@ -119,3 +123,82 @@ class video_stitcher(Stitcher):
         self.cameras_registered = True
         # Done
         print("Camera registration loaded")
+
+    def search_backward_for_directory(self,target_directory,start_directory=None):
+        if start_directory is None:
+            start_directory = os.getcwd()  # Start from the current working directory
+        current_directory = start_directory
+        while True:
+            if os.path.isdir(os.path.join(current_directory, target_directory)):
+                return os.path.join(current_directory, target_directory)
+            # Move up one level
+            current_directory = os.path.dirname(current_directory)
+            # If reached the root directory, break the loop
+            if current_directory == os.path.dirname(current_directory):
+                break
+        return None
+
+    def calc_point_for_zero_center(self,corners):
+        print("corners:      "+str(corners))
+        if self.cropper.do_crop:
+            min_corner_x = min([corner[0] for corner in corners])
+            min_corner_y = min([corner[1] for corner in corners])
+            lir_aspect = self.images.get_ratio(
+            Images.Resolution.LOW, Images.Resolution.FINAL
+            )
+            print("lir_aspect: "+str(lir_aspect))
+            scaled_overlaps = [r.times(lir_aspect) for r in self.cropper.overlapping_rectangles]
+            cropped_corners = [r.corner for r in scaled_overlaps]
+            print("cropped_corners: "+str(cropped_corners))
+        else:
+            min_corner_x = min([corner[0] for corner in corners])
+            min_corner_y = min([corner[1] for corner in corners])
+        print("min_corner_x: "+str(min_corner_x))
+        print("min_corner_y: "+str(min_corner_y))
+
+        return (min_corner_x,min_corner_y)
+            
+
+    def warp_point_new(self,cameras):
+
+        print("warp_point_new start")
+        sizes = self.images.get_scaled_img_sizes(Images.Resolution.FINAL)
+        camera_aspect = self.images.get_ratio(
+            Images.Resolution.MEDIUM, Images.Resolution.FINAL
+        )
+        #print("sizes: "+str(sizes))
+        print("camera_aspect: "+str(camera_aspect))
+
+        corners = []
+        points = []
+
+        n = 0
+        for camera in cameras:
+
+            warper = cv2.PyRotationWarper(self.warper.warper_type, self.warper.scale * camera_aspect)
+            K = Warper.get_K(camera, camera_aspect)
+            roi = warper.warpRoi(sizes[n], K, camera.R)
+            print("roi: "+str(roi))
+            corners.append((roi[0],roi[1]))
+        
+        
+            coord_in = (500,300)
+            point = warper.warpPoint(coord_in, K, camera.R)
+            print("point: "+str(point))
+            points.append(point)
+
+            n = n + 1
+
+        print("sizes: "+str(sizes))
+        print("corners: "+str(corners))
+        print("points: "+str(points))
+
+        min_corner = self.calc_point_for_zero_center(corners)
+        print("min_corner: "+str(min_corner))
+        points_new = []
+        for point in points:
+            points_new.append((point[0]-min_corner[0],point[1]-min_corner[1]))
+        print("points_new: "+str(points_new))
+
+            
+        print("warp_point_new stop")

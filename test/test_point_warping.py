@@ -1,10 +1,25 @@
 
-import cv2
+
 import numpy as np
-import pickle
 from numpy.linalg import inv
 import math
-from statistics import median
+
+from picamera2 import Picamera2
+from libcamera import Transform
+from libcamera import controls
+
+import os
+import cv2
+import time
+import sys
+
+# Get root directory of project to import modules
+parent_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+sys.path.insert(0,parent_dir)
+
+# Import local packages / modules
+from modules import sampling_timers
+from modules import video_stitcher
 
 def map_forward(xy, r_kinv, scale):
     x, y = xy
@@ -34,30 +49,102 @@ def map_backward(uv, scale, k_rinv):
         x = y = -1
     return (x,y)
 
-# Load camera data
-#with open('registration', 'rb') as file:
-with open('../image_stitch/test_stitcher/registration', 'rb') as file:
-    attr_data_dict_list_in = pickle.load(file)
-    # Make tuple of CameraParams
-    new_cam_param_tuple = ()
-    for i in range(len(attr_data_dict_list_in)):
-        new_cam_param = cv2.detail.CameraParams()
-        for keys, value in attr_data_dict_list_in[i].items():
-            setattr(new_cam_param,keys,value)
-        new_cam_param_tuple = new_cam_param_tuple + (new_cam_param,)
-    # Overwrite tupe in stitcher
-    cameras = new_cam_param_tuple
-    print("registration loaded")
-    print(attr_data_dict_list_in)
 
-# Calc scale
-scale = 466.9297206162631
-focals = [cam.focal for cam in cameras]
-scale = median(focals)
+# Init get image function
+def init_get_imgs(**settings):
+    if settings["cam_en"] == True:
+        global picam1
+        global picam2
+        picam1 = Picamera2(1)
+        time.sleep(0.5)
+        picam2 = Picamera2(0)
+        time.sleep(0.5)
+        picam1.configure(picam1.create_preview_configuration(raw={"size":(4608,2592)},main={"format": 'RGB888', "size": settings["cam_dim"]},transform=Transform(hflip=True,vflip=True)))
+        picam2.configure(picam2.create_preview_configuration(raw={"size":(4608,2592)},main={"format": 'RGB888', "size": settings["cam_dim"]},transform=Transform(hflip=True,vflip=True)))
+        picam1.set_controls({"AfMode": controls.AfModeEnum.Manual, "LensPosition": 0.0})
+        picam2.set_controls({"AfMode": controls.AfModeEnum.Manual, "LensPosition": 0.0})
+        #picam1.set_controls({"AfMode": controls.AfModeEnum.Continuous, "AfSpeed": controls.AfSpeedEnum.Fast})
+        #picam2.set_controls({"AfMode": controls.AfModeEnum.Continuous, "AfSpeed": controls.AfSpeedEnum.Fast})
+        picam1.start()
+        picam2.start()
+        time.sleep(2)
+        picam1.capture_array()
+        picam2.capture_array()
+
+        metadata = picam1.capture_metadata()
+        print(metadata)
+
+        if False:
+            for i in range(10):
+                picam1.capture_array()
+                picam2.capture_array()
+                picam1.capture_metadata()
+                picam2.capture_metadata()
+                time.sleep(0.1)
+
+            metadata = picam1.capture_metadata()
+            print(metadata)
+            img = picam2.capture_array()
+            print(img.shape)
+                
+            #(buffer, ), metadata = picam1.capture_buffers(["main"])
+            #img = picam2.helpers.make_array(buffer, picam1.camera_configuration()["main"])
+            #print(metadata)
+            #print(img.shape)
+
+            #picam1.stop()
+            #print(picam1.sensor_modes)
+            
+            exit(0)
+
+def get_imgs(**settings):
+    imgs = []
+    if settings["cam_en"] == False:
+        image_paths = settings["image_paths"]
+        for i in range(len(image_paths)):
+            img_in = cv2.imread(image_paths[i])
+            imgs.append(img_in)
+    else:
+        global picam1
+        global picam2
+        imgs.append(picam1.capture_array())
+        imgs.append(picam2.capture_array())
+    return imgs
+
+# Normal stitcher class or vidoe stitch
+def init_stitcher(vid_stitch_en,**settings_stitcher):
+    if vid_stitch_en == True:
+        return video_stitcher.video_stitcher(**settings_stitcher)
+    else:
+        return Stitcher(**settings_stitcher)
+
+settings_input = {}
+# Set option to use rpi camera of set of pictures
+settings_input["cam_en"]        = True
+settings_input["cam_dim"]       = (1152,648)   # registration_1920x1080    6.5
+settings_input["vid_stitch_en"] = True
+    
+# Init Camera
+init_get_imgs(**settings_input)
+
+# Init stitcher
+settings_stitcher = {}
+stitcher = init_stitcher(settings_input["vid_stitch_en"],**settings_stitcher)
+stitcher.load_registration(False)
+
+# Calc coordinates on each image and panorama
+#coord_in = (300,550)
+#coord_in = (550,300)
+#coord_in = (600,320)
+#coord_in = (-600,-320)
+#coord_in = (0.5,0.5)
+#coord_in = (1,1)
+#coord_in = (0,0)
+coord_in = (150,90)
+scale = stitcher.warper.scale
 print("scale: "+str(scale))
-
 i = 0
-for camera in cameras:
+for camera in stitcher.cameras:
     i = i + 1
 
     # Gather constants
@@ -67,17 +154,76 @@ for camera in cameras:
     R_Kinv = np.matmul(R, inv(K))
     K_Rinv = np.matmul(K, inv(R))
 
-    coord_in = (1152,648)
     print("Coordinate in: "+str(coord_in))
 
-    warper = cv2.PyRotationWarper("spherical",scale)
-    coord_out = warper.warpPoint(coord_in, K, R)
-    print("Coordinate out: "+str(coord_out))
+    #warper = cv2.PyRotationWarper("spherical",scale)
+    #coord_out = warper.warpPoint(coord_in, K, R)
+    #print("Coordinate out: "+str(coord_out))
     
     coord_out = map_forward(coord_in, R_Kinv, scale)
     print("Coordinate out: "+str(coord_out))
 
     coord_back = map_backward(coord_out, scale, K_Rinv)
     print("Coordinate back: "+str(coord_back))
+
+
+#https://github.com/opencv/opencv/blob/41f08988b4c9756bd528bb6cd0cca0ce104b4edb/modules/stitching/include/opencv2/stitching/detail/warpers_inl.hpp#L222
+
+# On first loop start stitching and open image windows
+init_stitch_success = True
+restart_imshow_window = True
+
+# Run loop
+while True:
+    # Make panorama
+    imgs = []
+    imgs = get_imgs(**settings_input)
+    panorama = stitcher.stitch(imgs)
+    print("panorama, WxH: "+str(panorama.shape[1])+"x"+str(panorama.shape[0]))
+    print("imgs[0] , WxH: "+str(imgs[0].shape[1])+"x"+str(imgs[0].shape[0]))
+
+    # Plot point
+    imgs[0][300,500] = (0,0,255)
+    imgs[0][301,500] = (0,0,255)
+    imgs[0][301,501] = (0,0,255)
+    imgs[0][300,501] = (0,0,255)
+    imgs[1][300,500] = (0,0,255)
+    imgs[1][301,500] = (0,0,255)
+    imgs[1][301,501] = (0,0,255)
+    imgs[1][300,501] = (0,0,255)
+
+    panorama[279,379] = (0,0,255)
+    panorama[280,379] = (0,0,255)
+    panorama[280,380] = (0,0,255)
+    panorama[279,380] = (0,0,255)
+    panorama[288,980] = (0,0,255)
+    panorama[289,980] = (0,0,255)
+    panorama[289,981] = (0,0,255)
+    panorama[288,981] = (0,0,255)
+
     
-   
+
+    #exit(0)
+    
+    # Show images
+    if restart_imshow_window == True:
+        for i in range(len(imgs)):
+            cv2.namedWindow("img_"+str(i), cv2.WINDOW_NORMAL)
+            cv2.setWindowProperty("img_"+str(i), cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    for i in range(len(imgs)):
+        cv2.imshow("img_"+str(i),imgs[i])     
+    # Show first panorama
+    if restart_imshow_window == True:
+        cv2.namedWindow('final', cv2.WINDOW_NORMAL)
+        cv2.setWindowProperty('final', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    cv2.imshow('final',panorama)
+    # Print all dimmensions of images and panorama
+    if restart_imshow_window == True:
+        for i in range(len(imgs)):
+            print("img_"+str(i)+", WxH: "+str(imgs[i].shape[1])+"x"+str(imgs[i].shape[0]))
+        print("panorama, WxH: "+str(panorama.shape[1])+"x"+str(panorama.shape[0]))
+    restart_imshow_window = False
+    # Handle keybaord input
+    waitkey_in = cv2.waitKey(1) & 0xFF
+    if waitkey_in == ord('q'): # Exit
+        sys.exit()
