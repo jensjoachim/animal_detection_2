@@ -36,9 +36,9 @@ settings_input["cam_en"]        = True
 #settings_input["cam_dim"]       = (576,324)    # registration_576,324     11.2
 #settings_input["cam_dim"]       = (768,432)    # registration_76xx432      8.2
 #settings_input["cam_dim"]       = (960,540)    # registration_960x540      7.5
-#settings_input["cam_dim"]       = (1152,648)   # registration_1920x1080    6.5
+settings_input["cam_dim"]       = (1152,648)   # registration_1920x1080    6.5
 #settings_input["cam_dim"]       = (1920,1080)  # registration_1920x1080    3.6
-settings_input["cam_dim"]       = (2304,1296)  # registration_1920x1080    2.5
+#settings_input["cam_dim"]       = (2304,1296)  # registration_1920x1080    2.5
 #settings_input["cam_dim"]       = (4608,2592)  # registration_1920x1080    0.6
 settings_input["image_paths"]   = ['../o_0.png','../o_1.png','../o_2.png']
 # Set to use image stitching or video stitcking, only calculating registration data once
@@ -128,7 +128,6 @@ def get_imgs(**settings):
 # Normal stitcher class or vidoe stitch
 def init_stitcher(vid_stitch_en,**settings_stitcher):
     if vid_stitch_en == True:
-        #return VideoStitcher(**settings_stitcher)
         return video_stitcher.video_stitcher(**settings_stitcher)
     else:
         return Stitcher(**settings_stitcher)
@@ -242,7 +241,7 @@ while True:
             settings_stitcher["crop"] = stitcher.DEFAULT_SETTINGS["crop"]
         else:
             stitcher.cropper = Cropper(False)
-            settings_stitcher["crop"] = True
+            settings_stitcher["crop"] = False
         # Restart window
         cv2.destroyAllWindows()
         restart_imshow_window = True
