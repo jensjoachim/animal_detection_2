@@ -27,11 +27,38 @@ def map_forward(xy, r_kinv, scale):
     y_ = r_kinv[1][0] * x + r_kinv[1][1] * y + r_kinv[1][2]
     z_ = r_kinv[2][0] * x + r_kinv[2][1] * y + r_kinv[2][2]
     u = scale * math.atan2(x_, z_)
+    v = scale * y_ / math.sqrt(x_ * x_ + z_ * z_)
+    return (u,v)
+
+def map_forward_old(xy, r_kinv, scale):
+    x, y = xy
+    x_ = r_kinv[0][0] * x + r_kinv[0][1] * y + r_kinv[0][2]
+    y_ = r_kinv[1][0] * x + r_kinv[1][1] * y + r_kinv[1][2]
+    z_ = r_kinv[2][0] * x + r_kinv[2][1] * y + r_kinv[2][2]
+    u = scale * math.atan2(x_, z_)
     w = y_ / math.sqrt(x_ * x_ + y_ * y_ + z_ * z_)
     v = scale * (math.pi - math.acos(w if not math.isnan(w) else 0))
     return (u,v)
 
 def map_backward(uv, scale, k_rinv):
+    u, v = uv
+    u /= scale
+    v /= scale
+    x_ = math.sin(u)
+    y_ = v
+    z_ = math.cos(u)
+    x = k_rinv[0][0] * x_ + k_rinv[0][1] * y_ + k_rinv[0][2] * z_
+    y = k_rinv[1][0] * x_ + k_rinv[1][1] * y_ + k_rinv[1][2] * z_
+    z = k_rinv[2][0] * x_ + k_rinv[2][1] * y_ + k_rinv[2][2] * z_
+    if z > 0:
+        x /= z
+        y /= z
+    else:
+        x = -1
+        y = -1
+    return (x,y)
+
+def map_backward_old(uv, scale, k_rinv):
     u, v = uv
     u /= scale
     v /= scale
@@ -150,7 +177,6 @@ for camera in stitcher.cameras:
     # Gather constants
     K = camera.K().astype(np.float32)
     R = camera.R
-    H = np.matmul(K, R, inv(K))
     R_Kinv = np.matmul(R, inv(K))
     K_Rinv = np.matmul(K, inv(R))
 
@@ -160,12 +186,17 @@ for camera in stitcher.cameras:
     #coord_out = warper.warpPoint(coord_in, K, R)
     #print("Coordinate out: "+str(coord_out))
     
+    warper = cv2.PyRotationWarper("cylindrical",scale)
+    coord_out = warper.warpPoint(coord_in, K, R)
+    print("Coordinate out: "+str(coord_out))
+    
     coord_out = map_forward(coord_in, R_Kinv, scale)
     print("Coordinate out: "+str(coord_out))
 
     coord_back = map_backward(coord_out, scale, K_Rinv)
     print("Coordinate back: "+str(coord_back))
 
+#exit(0)
 
 #https://github.com/opencv/opencv/blob/41f08988b4c9756bd528bb6cd0cca0ce104b4edb/modules/stitching/include/opencv2/stitching/detail/warpers_inl.hpp#L222
 
@@ -181,6 +212,8 @@ while True:
     panorama = stitcher.stitch(imgs)
     print("panorama, WxH: "+str(panorama.shape[1])+"x"+str(panorama.shape[0]))
     print("imgs[0] , WxH: "+str(imgs[0].shape[1])+"x"+str(imgs[0].shape[0]))
+
+    stitcher.warp_point_new(stitcher.cameras)
 
     # Plot point
     imgs[0][300,500] = (0,0,255)

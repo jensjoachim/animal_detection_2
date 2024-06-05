@@ -4,6 +4,9 @@ from stitching.warper import Warper
 import pickle
 import cv2
 import os
+import numpy as np
+from numpy.linalg import inv
+import math
 
 class video_stitcher(Stitcher):
  
@@ -60,7 +63,7 @@ class video_stitcher(Stitcher):
         imgs = self.compensate_exposure_errors(corners, imgs)
         seam_masks = self.resize_seam_masks(seam_masks)
 
-        self.warp_point_new(self.cameras)
+        #self.warp_point_new(self.cameras)
         
         self.initialize_composition(corners, sizes)
         self.blend_images(imgs, seam_masks, corners)
@@ -183,7 +186,8 @@ class video_stitcher(Stitcher):
         
         
             coord_in = (500,300)
-            point = warper.warpPoint(coord_in, K, camera.R)
+            #point = warper.warpPoint(coord_in, K, camera.R)
+            point = self.map_forward(coord_in, K, camera.R, self.warper.scale * camera_aspect)
             print("point: "+str(point))
             points.append(point)
 
@@ -202,3 +206,14 @@ class video_stitcher(Stitcher):
 
             
         print("warp_point_new stop")
+
+
+    def map_forward(self,xy,K,R,scale):
+        r_kinv = np.matmul(R,inv(K))
+        x, y = xy
+        x_ = r_kinv[0][0] * x + r_kinv[0][1] * y + r_kinv[0][2]
+        y_ = r_kinv[1][0] * x + r_kinv[1][1] * y + r_kinv[1][2]
+        z_ = r_kinv[2][0] * x + r_kinv[2][1] * y + r_kinv[2][2]
+        u = scale * math.atan2(x_, z_)
+        v = scale * y_ / math.sqrt(x_ * x_ + z_ * z_)
+        return (u,v)
