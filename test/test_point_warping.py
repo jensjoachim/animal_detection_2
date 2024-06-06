@@ -76,6 +76,11 @@ def map_backward_old(uv, scale, k_rinv):
         x = y = -1
     return (x,y)
 
+def point_plot(img,xy,w=5):
+    x,y = xy
+    for i in range(w):
+        for j in range(w):
+            img[int(y+i),int(x+j)] = (0,0,255)
 
 # Init get image function
 def init_get_imgs(**settings):
@@ -159,6 +164,11 @@ settings_stitcher = {}
 stitcher = init_stitcher(settings_input["vid_stitch_en"],**settings_stitcher)
 stitcher.load_registration(False)
 
+# Get first panoram, to calculate offset for point warping
+imgs = get_imgs(**settings_input)
+panorama = stitcher.stitch(imgs)
+stitcher.warp_point_init()
+
 # Calc coordinates on each image and panorama
 #coord_in = (300,550)
 #coord_in = (550,300)
@@ -203,6 +213,7 @@ for camera in stitcher.cameras:
 # On first loop start stitching and open image windows
 init_stitch_success = True
 restart_imshow_window = True
+point_in = (500,300)
 
 # Run loop
 while True:
@@ -213,31 +224,12 @@ while True:
     print("panorama, WxH: "+str(panorama.shape[1])+"x"+str(panorama.shape[0]))
     print("imgs[0] , WxH: "+str(imgs[0].shape[1])+"x"+str(imgs[0].shape[0]))
 
-    stitcher.warp_point_new(stitcher.cameras)
+    # Plot points
+    for i in range(len(stitcher.cameras)):
+        point_plot(imgs[i],point_in)
+        point_new = stitcher.warp_point_forward(point_in,i)
+        point_plot(panorama,point_new)
 
-    # Plot point
-    imgs[0][300,500] = (0,0,255)
-    imgs[0][301,500] = (0,0,255)
-    imgs[0][301,501] = (0,0,255)
-    imgs[0][300,501] = (0,0,255)
-    imgs[1][300,500] = (0,0,255)
-    imgs[1][301,500] = (0,0,255)
-    imgs[1][301,501] = (0,0,255)
-    imgs[1][300,501] = (0,0,255)
-
-    panorama[279,379] = (0,0,255)
-    panorama[280,379] = (0,0,255)
-    panorama[280,380] = (0,0,255)
-    panorama[279,380] = (0,0,255)
-    panorama[288,980] = (0,0,255)
-    panorama[289,980] = (0,0,255)
-    panorama[289,981] = (0,0,255)
-    panorama[288,981] = (0,0,255)
-
-    
-
-    #exit(0)
-    
     # Show images
     if restart_imshow_window == True:
         for i in range(len(imgs)):
@@ -260,3 +252,15 @@ while True:
     waitkey_in = cv2.waitKey(1) & 0xFF
     if waitkey_in == ord('q'): # Exit
         sys.exit()
+    if waitkey_in == ord('w'): # Up
+        x,y = point_in
+        point_in = (x,y-100)
+    if waitkey_in == ord('s'): # Down
+        x,y = point_in
+        point_in = (x,y+100)
+    if waitkey_in == ord('a'): # Left
+        x,y = point_in
+        point_in = (x-100,y)
+    if waitkey_in == ord('d'): # Right
+        x,y = point_in
+        point_in = (x+100,y)
