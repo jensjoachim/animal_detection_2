@@ -82,6 +82,9 @@ def point_plot(img,xy,w=5):
         for j in range(w):
             img[int(y+i),int(x+j)] = (0,0,255)
 
+def point_round(xy):
+    return (round(xy[0]),round(xy[1]))
+
 # Init get image function
 def init_get_imgs(**settings):
     if settings["cam_en"] == True:
@@ -168,6 +171,14 @@ stitcher.load_registration(False)
 imgs = get_imgs(**settings_input)
 panorama = stitcher.stitch(imgs)
 stitcher.warp_point_init()
+pano_size = (panorama.shape[1],panorama.shape[0])
+imgs_size = []
+for img in imgs:
+    imgs_size.append((img.shape[1],img.shape[0]))
+print("pano_size: "+str(pano_size))
+print("imgs_size: "+str(imgs_size))
+
+#exit(0)
 
 # Calc coordinates on each image and panorama
 #coord_in = (300,550)
@@ -221,15 +232,36 @@ while True:
     imgs = []
     imgs = get_imgs(**settings_input)
     panorama = stitcher.stitch(imgs)
-    print("panorama, WxH: "+str(panorama.shape[1])+"x"+str(panorama.shape[0]))
-    print("imgs[0] , WxH: "+str(imgs[0].shape[1])+"x"+str(imgs[0].shape[0]))
+    #print("panorama, WxH: "+str(panorama.shape[1])+"x"+str(panorama.shape[0]))
+    #print("imgs[0] , WxH: "+str(imgs[0].shape[1])+"x"+str(imgs[0].shape[0]))
 
     # Plot points
     for i in range(len(stitcher.cameras)):
         point_plot(imgs[i],point_in)
         point_new = stitcher.warp_point_forward(point_in,i)
+        #stitcher.warp_point_backward(point_new,i)
         point_plot(panorama,point_new)
 
+    # Add edge on images on panorama
+    i = 0
+    #while i < len(imgs):
+    while i < 1:
+        if i == 0:
+            x_edge = imgs_size[i][0]-1
+        else:
+            x_edge = 0
+        y = 0
+        while y < imgs_size[i][1]:
+            xy = (x_edge,y)
+            #point_plot(imgs[i],xy,1)
+            xy_pano = stitcher.warp_point_forward(xy,i)
+            point_plot(panorama,point_round(xy_pano),2)
+            xy_back = stitcher.warp_point_backward(xy,i+1%2)
+            point_plot(imgs[i+1%2],point_round(xy_back),2)
+            y = y + 1
+        i = i + 1
+    
+    
     # Show images
     if restart_imshow_window == True:
         for i in range(len(imgs)):

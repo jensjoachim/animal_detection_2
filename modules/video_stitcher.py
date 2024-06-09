@@ -212,11 +212,22 @@ class video_stitcher(Stitcher):
         camera = self.cameras[n]
         K = Warper.get_K(camera, camera_aspect)  
         point = self.map_forward(xy, K, camera.R, self.warper.scale * camera_aspect)
-        print("point: "+str(point))
+        #print("point: "+str(point))
         point_new = (point[0]-min_corner[0],point[1]-min_corner[1])
-        print("point_new: "+str(point_new))
+        #print("point_new: "+str(point_new))
         return point_new
 
+    def warp_point_backward(self,xy,n):
+        camera_aspect = self.images.get_ratio(Images.Resolution.MEDIUM, Images.Resolution.FINAL)
+        min_corner = self.wp_min_corner
+        camera = self.cameras[n]
+        K = Warper.get_K(camera, camera_aspect)
+        point = (xy[0]+min_corner[0],xy[1]+min_corner[1])
+        #print("point: "+str(point))
+        point_new = self.map_backward(point, K, camera.R, self.warper.scale * camera_aspect)
+        #print("point_new: "+str(point_new))
+        return point_new
+    
     def map_forward(self,xy,K,R,scale):
         r_kinv = np.matmul(R,inv(K))
         x, y = xy
@@ -228,7 +239,7 @@ class video_stitcher(Stitcher):
         return (u,v)
 
     def map_backward(self,uv,K,R,scale):
-        r_kinv = np.matmul(R,inv(K))
+        k_rinv = np.matmul(K,inv(R))
         u, v = uv
         u /= scale
         v /= scale
