@@ -76,14 +76,20 @@ def map_backward_old(uv, scale, k_rinv):
         x = y = -1
     return (x,y)
 
-def point_plot(img,xy,w=5):
+def point_plot(img,xy,w=5,c=(0,0,255)):
     x,y = xy
     for i in range(w):
         for j in range(w):
-            img[int(y+i),int(x+j)] = (0,0,255)
+            img[int(y+i),int(x+j)] = c
 
 def point_round(xy):
     return (round(xy[0]),round(xy[1]))
+
+def point_check_in_frame(xy,size):
+    if xy[0] > 0 and xy[0] < size[0]:
+        if xy[1] > 0 and xy[1] < size[1]:
+            return True
+    return False
 
 # Init get image function
 def init_get_imgs(**settings):
@@ -225,6 +231,7 @@ for camera in stitcher.cameras:
 init_stitch_success = True
 restart_imshow_window = True
 point_in = (500,300)
+#point_in = (1000,300)
 
 # Run loop
 while True:
@@ -237,30 +244,38 @@ while True:
 
     # Plot points
     for i in range(len(stitcher.cameras)):
+        #print("point_in: "+str(point_in))
         point_plot(imgs[i],point_in)
         point_new = stitcher.warp_point_forward(point_in,i)
-        #stitcher.warp_point_backward(point_new,i)
+        #print("point_new: "+str(point_new))
         point_plot(panorama,point_new)
+        point_back = stitcher.warp_point_backward(point_new,(i+1)%2)
+        if point_check_in_frame(point_back,imgs_size[(i+1)%2]):
+            #print("point_back: "+str(point_back))
+            point_plot(imgs[(i+1)%2],point_back,5,(0,255,0))
 
     # Add edge on images on panorama
     i = 0
-    #while i < len(imgs):
-    while i < 1:
+    while i < len(imgs):
+        dot_size = 1
         if i == 0:
-            x_edge = imgs_size[i][0]-1
+            x_edge = imgs_size[i][0]-dot_size
         else:
             x_edge = 0
         y = 0
-        while y < imgs_size[i][1]:
+        while y < imgs_size[i][1]-dot_size:
             xy = (x_edge,y)
-            #point_plot(imgs[i],xy,1)
+            point_plot(imgs[i],xy,dot_size)
             xy_pano = stitcher.warp_point_forward(xy,i)
-            point_plot(panorama,point_round(xy_pano),2)
-            xy_back = stitcher.warp_point_backward(xy,i+1%2)
-            point_plot(imgs[i+1%2],point_round(xy_back),2)
+            point_plot(panorama,xy_pano,dot_size)
+            xy_back = stitcher.warp_point_backward(xy_pano,(i+1)%2)
+            if point_check_in_frame(xy_back,imgs_size[(i+1)%2]):
+                #print("xy_back: "+str(xy_back))
+                point_plot(imgs[(i+1)%2],xy_back,1,(0,255,0))
             y = y + 1
         i = i + 1
-    
+
+    #exit(0)
     
     # Show images
     if restart_imshow_window == True:
