@@ -62,8 +62,6 @@ class video_stitcher(Stitcher):
         self.set_masks(masks)
         imgs = self.compensate_exposure_errors(corners, imgs)
         seam_masks = self.resize_seam_masks(seam_masks)
-
-        #self.warp_point_new(self.cameras)
         
         self.initialize_composition(corners, sizes)
         self.blend_images(imgs, seam_masks, corners)
@@ -149,62 +147,35 @@ class video_stitcher(Stitcher):
             lir_aspect = self.images.get_ratio(
             Images.Resolution.LOW, Images.Resolution.FINAL
             )
-            print("lir_aspect: "+str(lir_aspect))
             scaled_overlaps = [r.times(lir_aspect) for r in self.cropper.overlapping_rectangles]
             cropped_corners = [r.corner for r in scaled_overlaps]
-            print("cropped_corners: "+str(cropped_corners))
+            new_corners = []
+            for i in range(len(corners)):
+                new_corners.append((corners[i][0]+cropped_corners[i][0],corners[i][1]+cropped_corners[i][1]))
+            min_corner_x = min([corner[0] for corner in new_corners])
+            min_corner_y = min([corner[1] for corner in new_corners])
         else:
             min_corner_x = min([corner[0] for corner in corners])
             min_corner_y = min([corner[1] for corner in corners])
         print("min_corner_x: "+str(min_corner_x))
         print("min_corner_y: "+str(min_corner_y))
-
         return (min_corner_x,min_corner_y)
 
     def warp_point_init(self):
-
-        print("warp_point_new start")
         sizes = self.images.get_scaled_img_sizes(Images.Resolution.FINAL)
         camera_aspect = self.images.get_ratio(Images.Resolution.MEDIUM, Images.Resolution.FINAL)
-        #print("sizes: "+str(sizes))
-        #print("camera_aspect: "+str(camera_aspect))
-
         corners = []
-        #points = []
-
         n = 0
         for camera in self.cameras:
-
             warper = cv2.PyRotationWarper(self.warper.warper_type, self.warper.scale * camera_aspect)
             K = Warper.get_K(camera, camera_aspect)
             roi = warper.warpRoi(sizes[n], K, camera.R)
             print("roi: "+str(roi))
             corners.append((roi[0],roi[1]))
-        
-        
-            #coord_in = (500,300)
-            #point = self.map_forward(coord_in, K, camera.R, self.warper.scale * camera_aspect)
-            #print("point: "+str(point))
-            #points.append(point)
-
             n = n + 1
-
-        print("sizes: "+str(sizes))
-        print("corners: "+str(corners))
-        #print("points: "+str(points))
-
         min_corner = self.calc_point_for_zero_center(corners)
-        print("min_corner: "+str(min_corner))
-        
-        #points_new = []
-        #for point in points:
-        #    points_new.append((point[0]-min_corner[0],point[1]-min_corner[1]))
-        #print("points_new: "+str(points_new))
-
-        self.wp_min_corner = min_corner
-            
+        self.wp_min_corner = min_corner            
         print("warp_point_new stop")
-
         
     def warp_point_forward(self,xy,n):
         camera_aspect = self.images.get_ratio(Images.Resolution.MEDIUM, Images.Resolution.FINAL)
@@ -212,9 +183,7 @@ class video_stitcher(Stitcher):
         camera = self.cameras[n]
         K = Warper.get_K(camera, camera_aspect)  
         point = self.map_forward(xy, K, camera.R, self.warper.scale * camera_aspect)
-        #print("point: "+str(point))
         point_new = (point[0]-min_corner[0],point[1]-min_corner[1])
-        #print("point_new: "+str(point_new))
         return point_new
 
     def warp_point_backward(self,xy,n):
@@ -223,9 +192,7 @@ class video_stitcher(Stitcher):
         camera = self.cameras[n]
         K = Warper.get_K(camera, camera_aspect)
         point = (xy[0]+min_corner[0],xy[1]+min_corner[1])
-        #print("point: "+str(point))
         point_new = self.map_backward(point, K, camera.R, self.warper.scale * camera_aspect)
-        #print("point_new: "+str(point_new))
         return point_new
     
     def map_forward(self,xy,K,R,scale):

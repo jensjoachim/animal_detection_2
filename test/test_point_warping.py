@@ -30,16 +30,6 @@ def map_forward(xy, r_kinv, scale):
     v = scale * y_ / math.sqrt(x_ * x_ + z_ * z_)
     return (u,v)
 
-def map_forward_old(xy, r_kinv, scale):
-    x, y = xy
-    x_ = r_kinv[0][0] * x + r_kinv[0][1] * y + r_kinv[0][2]
-    y_ = r_kinv[1][0] * x + r_kinv[1][1] * y + r_kinv[1][2]
-    z_ = r_kinv[2][0] * x + r_kinv[2][1] * y + r_kinv[2][2]
-    u = scale * math.atan2(x_, z_)
-    w = y_ / math.sqrt(x_ * x_ + y_ * y_ + z_ * z_)
-    v = scale * (math.pi - math.acos(w if not math.isnan(w) else 0))
-    return (u,v)
-
 def map_backward(uv, scale, k_rinv):
     u, v = uv
     u /= scale
@@ -56,24 +46,6 @@ def map_backward(uv, scale, k_rinv):
     else:
         x = -1
         y = -1
-    return (x,y)
-
-def map_backward_old(uv, scale, k_rinv):
-    u, v = uv
-    u /= scale
-    v /= scale
-    sinv = math.sin(math.pi - v)
-    x_ = sinv * math.sin(u)
-    y_ = math.cos(math.pi - v)
-    z_ = sinv * math.cos(u)
-    x = k_rinv[0][0] * x_ + k_rinv[0][1] * y_ + k_rinv[0][2] * z_
-    y = k_rinv[1][0] * x_ + k_rinv[1][1] * y_ + k_rinv[1][2] * z_
-    z = k_rinv[2][0] * x_ + k_rinv[2][1] * y_ + k_rinv[2][2] * z_
-    if z > 0:
-        x /= z
-        y /= z
-    else:
-        x = y = -1
     return (x,y)
 
 def point_plot(img,xy,w=5,c=(0,0,255)):
@@ -184,16 +156,7 @@ for img in imgs:
 print("pano_size: "+str(pano_size))
 print("imgs_size: "+str(imgs_size))
 
-#exit(0)
-
 # Calc coordinates on each image and panorama
-#coord_in = (300,550)
-#coord_in = (550,300)
-#coord_in = (600,320)
-#coord_in = (-600,-320)
-#coord_in = (0.5,0.5)
-#coord_in = (1,1)
-#coord_in = (0,0)
 coord_in = (150,90)
 scale = stitcher.warper.scale
 print("scale: "+str(scale))
@@ -209,10 +172,6 @@ for camera in stitcher.cameras:
 
     print("Coordinate in: "+str(coord_in))
 
-    #warper = cv2.PyRotationWarper("spherical",scale)
-    #coord_out = warper.warpPoint(coord_in, K, R)
-    #print("Coordinate out: "+str(coord_out))
-    
     warper = cv2.PyRotationWarper("cylindrical",scale)
     coord_out = warper.warpPoint(coord_in, K, R)
     print("Coordinate out: "+str(coord_out))
@@ -231,7 +190,6 @@ for camera in stitcher.cameras:
 init_stitch_success = True
 restart_imshow_window = True
 point_in = (500,300)
-#point_in = (1000,300)
 
 # Run loop
 while True:
@@ -239,16 +197,15 @@ while True:
     imgs = []
     imgs = get_imgs(**settings_input)
     panorama = stitcher.stitch(imgs)
-    #print("panorama, WxH: "+str(panorama.shape[1])+"x"+str(panorama.shape[0]))
-    #print("imgs[0] , WxH: "+str(imgs[0].shape[1])+"x"+str(imgs[0].shape[0]))
 
     # Plot points
     for i in range(len(stitcher.cameras)):
         #print("point_in: "+str(point_in))
         point_plot(imgs[i],point_in)
         point_new = stitcher.warp_point_forward(point_in,i)
-        #print("point_new: "+str(point_new))
-        point_plot(panorama,point_new)
+        if point_check_in_frame(point_new,pano_size):
+            #print("point_new: "+str(point_new))
+            point_plot(panorama,point_new)
         point_back = stitcher.warp_point_backward(point_new,(i+1)%2)
         if point_check_in_frame(point_back,imgs_size[(i+1)%2]):
             #print("point_back: "+str(point_back))
@@ -267,7 +224,8 @@ while True:
             xy = (x_edge,y)
             point_plot(imgs[i],xy,dot_size)
             xy_pano = stitcher.warp_point_forward(xy,i)
-            point_plot(panorama,xy_pano,dot_size)
+            if point_check_in_frame(xy_pano,pano_size):
+                point_plot(panorama,xy_pano,dot_size)
             xy_back = stitcher.warp_point_backward(xy_pano,(i+1)%2)
             if point_check_in_frame(xy_back,imgs_size[(i+1)%2]):
                 #print("xy_back: "+str(xy_back))
