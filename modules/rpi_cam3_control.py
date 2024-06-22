@@ -50,7 +50,7 @@ class rpi_cam3_control:
             if self.image_proc_mode == 0:
                 img = self.read_cam()
             # Apply offset, zoom, and scale
-            c1_x, c1_y, c2_x, c2_y = self.cursor_crop
+            c1_x, c1_y, c2_x, c2_y = self.get_cursor_crop(self.cursor_corner,self.cursor_dim)
             img_window = cv2.resize(img[c1_y:c2_y,c1_x:c2_x],self.dim_window,interpolation=self.interpolation)
             # Show image
             if restart_imshow_window == True:
@@ -63,13 +63,13 @@ class rpi_cam3_control:
             if waitkey_in == ord('q'): # Exit
                 sys.exit()
             elif waitkey_in == ord('w'): # Up
-                print("Not implemented")
-            elif waitkey_in == ord('d'): # Down
-                print("Not implemented")
+                self.move_corner_direction("up")
+            elif waitkey_in == ord('s'): # Down
+                self.move_corner_direction("down")
             elif waitkey_in == ord('a'): # Left
-                print("Not implemented")
+                self.move_corner_direction("left")
             elif waitkey_in == ord('d'): # Right
-                print("Not implemented")
+                self.move_corner_direction("right")
 
     def init_cam(self,cam_sel,dim_window,dim_cam):
 
@@ -130,24 +130,68 @@ class rpi_cam3_control:
         # Set corner cursor and cursor size
         self.cursor_corner = (int(round((self.dim_cam[0]-self.dim_window_in_cam_max[0])/2)),int(round((self.dim_cam[1]-self.dim_window_in_cam_max[1])/2)))
         self.cursor_dim = self.dim_window_in_cam_max
-        self.cursor_crop = (self.cursor_corner[0],self.cursor_corner[1],\
-                            self.cursor_corner[0]+self.dim_window_in_cam_max[0]-1,self.cursor_corner[1]+self.dim_window_in_cam_max[1]-1)
+        #self.cursor_crop = self.get_cursor_crop(self.cursor_corner,self.cursor_dim)
+        cursor_crop = self.get_cursor_crop(self.cursor_corner,self.cursor_dim)
         print("cursor_corner: "+str(self.cursor_corner))
         print("cursor_dim   : "+str(self.cursor_dim))
-        print("cursor_crop  : "+str(self.cursor_crop))
-        
+        print("cursor_crop  : "+str(cursor_crop))
+        # Set cursor move step
+        self.move_step_size = 0.25
 
     def read_cam(self):
         if self.image_proc_mode == 0:
             return self.debug_image
         else:
-            return self.picam.capture_array() 
+            return self.picam.capture_array()
 
-    def move_cursor_off(self,x_off,y_off):
-        print("Not implemented!")
+    def get_cursor_crop(self,corner,dim):
+        return (corner[0],corner[1],corner[0]+dim[0]-1,corner[1]+dim[1]-1)
 
-    def move_cursor(self,x,y):
-        print("Not implemented!")
+    def move_corner_direction(self,direction):
+        # Calc pixel step size
+        if self.cursor_dim[0] > self.cursor_dim[1]:
+            move_step_pixel = round(self.cursor_dim[1] * self.move_step_size)
+        else:
+            move_step_pixel = round(self.cursor_dim[0] * self.move_step_size)
+        print("move_step_pixel: "+str(move_step_pixel))
+        # Add to corner
+        x, y = self.cursor_corner
+        if direction == "up":
+            y = y - move_step_pixel
+        elif direction == "down":
+            y = y + move_step_pixel
+        elif direction == "left":
+            x = x - move_step_pixel
+        elif direction == "right":
+            x = x + move_step_pixel
+        # Move corner
+        self.move_corner((x,y))
+
+    def move_corner(self,cursor_corner):
+        # Check if within camera dimmension
+        c1_x, c1_y, c2_x, c2_y = self.get_cursor_crop(cursor_corner,self.cursor_dim)
+        c1_x_new = c1_x
+        c1_y_new = c1_y
+        c2_x_new = c2_x
+        c2_y_new = c2_y
+        if c1_x < 0:
+            c1_x_new = 0
+            c2_x_new = c2_x - c1_x
+        if c2_x > self.dim_cam[0]-1:
+            c1_x_new = c1_x - (c2_x-(self.dim_cam[0]-1))
+            c2_x_new = self.dim_cam[0]-1
+        if c1_y < 0:
+            c1_y_new = 0
+            c2_y_new = c2_y - c1_y
+        if c2_y > self.dim_cam[1]-1:
+            c1_y_new = c1_y - (c2_y-(self.dim_cam[1]-1))
+            c2_y_new = self.dim_cam[1]-1
+        cursor_crop = (c1_x_new,c1_y_new,c2_x_new,c2_y_new)
+        self.cursor_corner = (c1_x_new,c1_y_new)
+        # Print Debug
+        print("cursor_corner: "+str(self.cursor_corner))
+        print("cursor_dim   : "+str(self.cursor_dim))
+        print("cursor_crop  : "+str(cursor_crop))
 
     def zoom_cursor(self,inout):
         print("Not implemented!")
