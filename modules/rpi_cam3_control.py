@@ -1,6 +1,11 @@
 import numpy as np
 import cv2
 import sys
+import time
+
+from picamera2 import Picamera2
+from libcamera import Transform
+from libcamera import controls
 
 class rpi_cam3_control:
 
@@ -43,12 +48,11 @@ class rpi_cam3_control:
         running = True
         while running:
             # Check mode is implmented
-            if self.image_proc_mode != 0:
+            if self.image_proc_mode != 0 and self.image_proc_mode != 1:
                 print("Mode Not implemented!")
                 running = False
             # Read image
-            if self.image_proc_mode == 0:
-                img = self.read_cam()
+            img = self.read_cam()
             # Apply offset, zoom, and scale
             c1_x, c1_y, c2_x, c2_y = self.get_cursor_crop(self.cursor_corner,self.cursor_dim)
             img_window = cv2.resize(img[c1_y:c2_y,c1_x:c2_x],self.dim_window,interpolation=self.interpolation)
@@ -97,15 +101,15 @@ class rpi_cam3_control:
         # Set source of image
         if self.image_proc_mode == 0:
             # Load picture from drive
-            self.debug_image = np.array(cv2.imread(cam_sel))
+            self.debug_image = np.array(cv2.imread(self.cam_sel))
             self.dim_cam = (self.debug_image.shape[1],self.debug_image.shape[0])
         else:
             # Start Camera
             # (800,600)
             # (1920,1080)
             # (4608,2592)
-            self.picam = Picamera2()
-            self.picam.configure(picam.create_preview_configuration(main={"format": 'RGB888', "size": self.dim_cam},transform=Transform(hflip=True,vflip=True)))
+            self.picam = Picamera2(self.cam_sel)
+            self.picam.configure(self.picam.create_preview_configuration(main={"format": 'RGB888', "size": self.dim_cam},transform=Transform(hflip=True,vflip=True)))
             self.picam.start()
 
         # Print settings
