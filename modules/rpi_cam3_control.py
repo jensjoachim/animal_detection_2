@@ -47,15 +47,18 @@ class rpi_cam3_control:
         restart_imshow_window = True
         running = True
         while running:
-            # Check mode is implmented
-            if self.image_proc_mode != 0 and self.image_proc_mode != 1:
-                print("Mode Not implemented!")
-                running = False
+            ### Check mode is implmented
+            ##if self.image_proc_mode != 0 and self.image_proc_mode != 1:
+            ##    print("Mode Not implemented!")
+            ##    running = False
             # Read image
             img = self.read_cam()
             # Apply offset, zoom, and scale
-            c1_x, c1_y, c2_x, c2_y = self.get_cursor_crop(self.cursor_corner,self.cursor_dim)
-            img_window = cv2.resize(img[c1_y:c2_y,c1_x:c2_x],self.dim_window,interpolation=self.interpolation)
+            if self.image_proc_mode == 0 or self.image_proc_mode == 1:
+                c1_x, c1_y, c2_x, c2_y = self.get_cursor_crop(self.cursor_corner,self.cursor_dim)
+                img_window = cv2.resize(img[c1_y:c2_y,c1_x:c2_x],self.dim_window,interpolation=self.interpolation)
+            else:
+                img_window = img
             # Show image
             if restart_imshow_window == True:
                 cv2.namedWindow('img', cv2.WINDOW_NORMAL)
@@ -78,6 +81,9 @@ class rpi_cam3_control:
                 self.zoom_cursor_in_out("in")
             elif waitkey_in == ord('x'): # Out
                 self.zoom_cursor_in_out("out")
+            elif waitkey_in == ord('i'): # DBG Info
+                scaler_crop = self.picam.capture_metadata()['ScalerCrop']
+                print("scaler_crop: "+str(scaler_crop))
 
     def init_cam(self,cam_sel,dim_window,dim_cam):
 
@@ -96,20 +102,31 @@ class rpi_cam3_control:
                 # Set max dimmension of RPI cam 3
                 self.dim_cam = (4608,2592)
             else:
-                self.dim_cam = dim_ca
-    
+                self.dim_cam = dim_cam
+        # Use max dimmension when mode 2
+        if self.image_proc_mode == 2:
+            self.dim_cam = (4608,2592)
+            
         # Set source of image
         if self.image_proc_mode == 0:
             # Load picture from drive
             self.debug_image = np.array(cv2.imread(self.cam_sel))
             self.dim_cam = (self.debug_image.shape[1],self.debug_image.shape[0])
-        else:
+        elif self.image_proc_mode == 1:
             # Start Camera
             # (800,600)
             # (1920,1080)
             # (4608,2592)
             self.picam = Picamera2(self.cam_sel)
             self.picam.configure(self.picam.create_preview_configuration(main={"format": 'RGB888', "size": self.dim_cam},transform=Transform(hflip=True,vflip=True)))
+            self.picam.set_controls({"AfMode": controls.AfModeEnum.Manual, "LensPosition": 0.0})
+            self.picam.start()
+        else:
+            self.picam = Picamera2(self.cam_sel)
+            self.picam.configure(self.picam.create_preview_configuration(raw={"size":(4608,2592)},main={"format": 'RGB888', "size": self.dim_window},transform=Transform(hflip=True,vflip=True)))
+            
+            self.picam.set_controls({"AfMode": controls.AfModeEnum.Manual, "LensPosition": 0.0})
+            #self.picam.set_controls({"ScalerCrop": (0,0,1920,1080)})
             self.picam.start()
 
         # Print settings
@@ -198,6 +215,9 @@ class rpi_cam3_control:
             c2_y_new = self.dim_cam[1]-1
         cursor_crop = (c1_x_new,c1_y_new,c2_x_new,c2_y_new)
         self.cursor_corner = (c1_x_new,c1_y_new)
+        # Apply to camera processor
+        if self.image_proc_mode == 2:
+            self.set_scaler_crop(self.cursor_corner,self.cursor_dim)
         # Print Debug
         print("cursor_zoom  : "+str(self.cursor_zoom))
         print("cursor_corner: "+str(self.cursor_corner))
@@ -255,8 +275,14 @@ class rpi_cam3_control:
             c2_y_new = self.dim_cam[1]-1
         cursor_crop = (c1_x_new,c1_y_new,c2_x_new,c2_y_new)
         self.cursor_corner = (c1_x_new,c1_y_new)
+        # Apply to camera processor
+        if self.image_proc_mode == 2:
+            self.set_scaler_crop(self.cursor_corner,self.cursor_dim)
         # Print Debug
         print("cursor_zoom  : "+str(self.cursor_zoom))
         print("cursor_corner: "+str(self.cursor_corner))
         print("cursor_dim   : "+str(self.cursor_dim))
         print("cursor_crop  : "+str(cursor_crop))
+
+    def set_scaler_crop(self,cursor_corner,cursor_dim):
+        self.picam.set_controls({"ScalerCrop": cursor_corner+cursor_dim})

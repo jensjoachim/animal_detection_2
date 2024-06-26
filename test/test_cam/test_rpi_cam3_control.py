@@ -13,7 +13,8 @@ from modules import sampling_timers
 from modules import rpi_cam3_control
 
 #cam_ctrl = rpi_cam3_control.rpi_cam3_control(0,"test.jpg")
-cam_ctrl = rpi_cam3_control.rpi_cam3_control(1,1)
+#cam_ctrl = rpi_cam3_control.rpi_cam3_control(1,0)
+cam_ctrl = rpi_cam3_control.rpi_cam3_control(2,0)
 
 
 
