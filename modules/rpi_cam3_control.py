@@ -46,19 +46,26 @@ class rpi_cam3_control:
         # Tmp Loop
         restart_imshow_window = True
         running = True
+        test_insert_deer = True
         while running:
-            ### Check mode is implmented
-            ##if self.image_proc_mode != 0 and self.image_proc_mode != 1:
-            ##    print("Mode Not implemented!")
-            ##    running = False
             # Read image
             img = self.read_cam()
+            # Add a deer to image
+            if self.image_proc_mode == 0 or self.image_proc_mode == 1:
+                if test_insert_deer == True:
+                    self.test_insert_deer_on_pos(img)
             # Apply offset, zoom, and scale
             if self.image_proc_mode == 0 or self.image_proc_mode == 1:
                 c1_x, c1_y, c2_x, c2_y = self.get_cursor_crop(self.cursor_corner,self.cursor_dim)
                 img_window = cv2.resize(img[c1_y:c2_y,c1_x:c2_x],self.dim_window,interpolation=self.interpolation)
             else:
                 img_window = img
+            # Object detection
+            #
+            #
+            # Add FPS
+            #
+            #
             # Show image
             if restart_imshow_window == True:
                 cv2.namedWindow('img', cv2.WINDOW_NORMAL)
@@ -84,6 +91,11 @@ class rpi_cam3_control:
             elif waitkey_in == ord('i'): # DBG Info
                 scaler_crop = self.picam.capture_metadata()['ScalerCrop']
                 print("scaler_crop: "+str(scaler_crop))
+            elif waitkey_in == ord('i'): # Test - Insert deer
+                if test_insert_deer == True:
+                    test_insert_deer = False
+                else:
+                    test_insert_deer = True
 
     def init_cam(self,cam_sel,dim_window,dim_cam):
 
@@ -126,7 +138,6 @@ class rpi_cam3_control:
             self.picam.configure(self.picam.create_preview_configuration(raw={"size":(4608,2592)},main={"format": 'RGB888', "size": self.dim_window},transform=Transform(hflip=True,vflip=True)))
             
             self.picam.set_controls({"AfMode": controls.AfModeEnum.Manual, "LensPosition": 0.0})
-            #self.picam.set_controls({"ScalerCrop": (0,0,1920,1080)})
             self.picam.start()
 
         # Print settings
@@ -286,3 +297,7 @@ class rpi_cam3_control:
 
     def set_scaler_crop(self,cursor_corner,cursor_dim):
         self.picam.set_controls({"ScalerCrop": cursor_corner+cursor_dim})
+
+
+    def test_insert_deer_on_pos(self,img):
+        print("Not implemented")
