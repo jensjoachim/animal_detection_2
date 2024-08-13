@@ -25,10 +25,19 @@ cam_ctrl = rpi_cam3_control.rpi_cam3_control(2,0)
 # Tmp Loop
 restart_imshow_window = True
 running = True
+# Setup timers
+st = sampling_timers.sampling_timers()
+st.add("all",       30)
+st.add("read_image",30)
+show_timers = False
+# Debug handlers
 #test_insert_deer = True
 test_insert_deer = False
 while running:
+    
     # Read image
+    st.start("all")
+    st.start("read_image")
     img = cam_ctrl.read_cam()
     # Add a deer to image
     if cam_ctrl.image_proc_mode == 0 or cam_ctrl.image_proc_mode == 1:
@@ -40,6 +49,7 @@ while running:
         img_window = cv2.resize(img[c1_y:c2_y,c1_x:c2_x],cam_ctrl.dim_window,interpolation=cam_ctrl.interpolation)
     else:
         img_window = img
+    st.stop("read_image")
     # Object detection
     #
     # Add FPS
@@ -51,6 +61,9 @@ while running:
         #cv2.setWindowProperty('img', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         restart_imshow_window = False
     cv2.imshow('img',img_window)
+    # Show timers
+    if show_timers == True:
+        st.print_all()
     # Handle user input
     waitkey_in = cv2.waitKey(1) & 0xFF
     if waitkey_in == ord('q'): # Exit
@@ -76,11 +89,18 @@ while running:
     elif waitkey_in == ord('3'): # DBG Info #3
         brightness = cam_ctrl.get_brightness()
         print("brightness: "+str(brightness))
+    elif waitkey_in == ord('4'): # DBG Info #4
+        if show_timers == True:
+            show_timers = False
+        else:
+            show_timers = True
     elif waitkey_in == ord('i'): # Test - Insert deer
         if test_insert_deer == True:
             test_insert_deer = False
         else:
             test_insert_deer = True
 
+    
+ 
 
 
