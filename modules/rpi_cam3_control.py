@@ -42,61 +42,6 @@ class rpi_cam3_control:
         self.interpolation = cv2.INTER_NEAREST
         #self.interpolation = cv2.INTER_LINEAR
 
-
-        # Tmp Loop
-        restart_imshow_window = True
-        running = True
-        test_insert_deer = True
-        while running:
-            # Read image
-            img = self.read_cam()
-            # Add a deer to image
-            if self.image_proc_mode == 0 or self.image_proc_mode == 1:
-                if test_insert_deer == True:
-                    self.test_insert_deer_on_pos(img)
-            # Apply offset, zoom, and scale
-            if self.image_proc_mode == 0 or self.image_proc_mode == 1:
-                c1_x, c1_y, c2_x, c2_y = self.get_cursor_crop(self.cursor_corner,self.cursor_dim)
-                img_window = cv2.resize(img[c1_y:c2_y,c1_x:c2_x],self.dim_window,interpolation=self.interpolation)
-            else:
-                img_window = img
-            # Object detection
-            #
-            #
-            # Add FPS
-            #
-            #
-            # Show image
-            if restart_imshow_window == True:
-                cv2.namedWindow('img', cv2.WINDOW_NORMAL)
-                #cv2.setWindowProperty('img', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-                restart_imshow_window = False
-            cv2.imshow('img',img_window)
-            # Handle user input
-            waitkey_in = cv2.waitKey(1) & 0xFF
-            if waitkey_in == ord('q'): # Exit
-                sys.exit()
-            elif waitkey_in == ord('w'): # Up
-                self.move_corner_direction("up")
-            elif waitkey_in == ord('s'): # Down
-                self.move_corner_direction("down")
-            elif waitkey_in == ord('a'): # Left
-                self.move_corner_direction("left")
-            elif waitkey_in == ord('d'): # Right
-                self.move_corner_direction("right")
-            elif waitkey_in == ord('z'): # In
-                self.zoom_cursor_in_out("in")
-            elif waitkey_in == ord('x'): # Out
-                self.zoom_cursor_in_out("out")
-            elif waitkey_in == ord('i'): # DBG Info
-                scaler_crop = self.picam.capture_metadata()['ScalerCrop']
-                print("scaler_crop: "+str(scaler_crop))
-            elif waitkey_in == ord('i'): # Test - Insert deer
-                if test_insert_deer == True:
-                    test_insert_deer = False
-                else:
-                    test_insert_deer = True
-
     def init_cam(self,cam_sel,dim_window,dim_cam):
 
         # Store in object
@@ -160,8 +105,10 @@ class rpi_cam3_control:
         print("dim_window_in_cam_max: "+str(self.dim_window_in_cam_max))
         # Set min/max zoom
         self.zoom_max = self.dim_window_in_cam_max[0] / self.dim_window[0]
-        self.zoom_min = 0.5
-        self.zoom_step_size = 0.5
+        #self.zoom_min = 0.5
+        #self.zoom_step_size = 0.5
+        self.zoom_min = 0.25
+        self.zoom_step_size = 0.25
         # Calc nearest even zoom
         self.zoom_max_even = round(self.zoom_max / self.zoom_step_size)*self.zoom_step_size - self.zoom_step_size
         self.cursor_zoom = self.zoom_max
@@ -178,7 +125,7 @@ class rpi_cam3_control:
 
     def read_cam(self):
         if self.image_proc_mode == 0:
-            return self.debug_image
+            return self.debug_image.copy()
         else:
             return self.picam.capture_array()
 
@@ -298,6 +245,14 @@ class rpi_cam3_control:
     def set_scaler_crop(self,cursor_corner,cursor_dim):
         self.picam.set_controls({"ScalerCrop": cursor_corner+cursor_dim})
 
+    def get_scaler_crop(self):
+        return self.picam.capture_metadata()['ScalerCrop']
+
+    def get_lens_position(self):
+        return self.picam.capture_metadata()['LensPosition']
+
+    def get_brightness(self):
+        return self.picam.capture_metadata()['Brightness']
 
     def test_insert_deer_on_pos(self,img):
         print("Not implemented")
