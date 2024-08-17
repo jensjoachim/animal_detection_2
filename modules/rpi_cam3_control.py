@@ -251,8 +251,5 @@ class rpi_cam3_control:
     def get_lens_position(self):
         return self.picam.capture_metadata()['LensPosition']
 
-    def get_brightness(self):
-        return self.picam.capture_metadata()['Brightness']
-
     def test_insert_deer_on_pos(self,img):
         print("Not implemented")

@@ -27,8 +27,8 @@ restart_imshow_window = True
 running = True
 # Setup timers
 st = sampling_timers.sampling_timers()
-st.add("all",       30)
-st.add("read_image",30)
+st.add("all",       100)
+st.add("read_image",100)
 show_timers = False
 # Debug handlers
 #test_insert_deer = True
@@ -51,9 +51,6 @@ while running:
         img_window = img
     st.stop("read_image")
     # Object detection
-    #
-    # Add FPS
-    #
     #
     # Show image
     if restart_imshow_window == True:
@@ -87,9 +84,6 @@ while running:
         lens_position = cam_ctrl.get_lens_position()
         print("lens_position: "+str(lens_position))
     elif waitkey_in == ord('3'): # DBG Info #3
-        brightness = cam_ctrl.get_brightness()
-        print("brightness: "+str(brightness))
-    elif waitkey_in == ord('4'): # DBG Info #4
         if show_timers == True:
             show_timers = False
         else:
