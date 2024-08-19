@@ -12,9 +12,9 @@ from modules import sampling_timers
 
 from modules import rpi_cam3_control
 
-#cam_ctrl = rpi_cam3_control.rpi_cam3_control(0,"test.jpg")
+cam_ctrl = rpi_cam3_control.rpi_cam3_control(0,"test.jpg")
 #cam_ctrl = rpi_cam3_control.rpi_cam3_control(1,0)
-cam_ctrl = rpi_cam3_control.rpi_cam3_control(2,0)
+#cam_ctrl = rpi_cam3_control.rpi_cam3_control(2,0)
 #cam_ctrl = rpi_cam3_control.rpi_cam3_control(0,"test.jpg",(400,300))
 #cam_ctrl = rpi_cam3_control.rpi_cam3_control(1,0,(400,300))
 #cam_ctrl = rpi_cam3_control.rpi_cam3_control(2,0,(400,300))
@@ -31,19 +31,17 @@ st.add("all",       100)
 st.add("read_image",100)
 show_timers = False
 # Debug handlers
-#test_insert_deer = True
-test_insert_deer = False
+cam_ctrl.img_add_en = True
+#cam_ctrl.img_add_en = False
+if cam_ctrl.img_add_en == True:
+    cam_ctrl.init_img_add("deer_trans_bg_1.png")
 while running:
     
     # Read image
     st.start("all")
     st.start("read_image")
     img = cam_ctrl.read_cam()
-    # Add a deer to image
-    if cam_ctrl.image_proc_mode == 0 or cam_ctrl.image_proc_mode == 1:
-        if test_insert_deer == True:
-            cam_ctrl.test_insert_deer_on_pos(img)
-            # Apply offset, zoom, and scale
+    # Apply offset, zoom, and scale
     if cam_ctrl.image_proc_mode == 0 or cam_ctrl.image_proc_mode == 1:
         c1_x, c1_y, c2_x, c2_y = cam_ctrl.get_cursor_crop(cam_ctrl.cursor_corner,cam_ctrl.cursor_dim)
         img_window = cv2.resize(img[c1_y:c2_y,c1_x:c2_x],cam_ctrl.dim_window,interpolation=cam_ctrl.interpolation)
@@ -66,17 +64,35 @@ while running:
     if waitkey_in == ord('q'): # Exit
         sys.exit()
     elif waitkey_in == ord('w'): # Up
-        cam_ctrl.move_corner_direction("up")
+        if cam_ctrl.img_add_en == True:
+            cam_ctrl.move_img_add("up")
+        else:
+            cam_ctrl.move_corner_direction("up")
     elif waitkey_in == ord('s'): # Down
-        cam_ctrl.move_corner_direction("down")
+        if cam_ctrl.img_add_en == True:
+            cam_ctrl.move_img_add("down")
+        else:
+            cam_ctrl.move_corner_direction("down")
     elif waitkey_in == ord('a'): # Left
-        cam_ctrl.move_corner_direction("left")
+        if cam_ctrl.img_add_en == True:
+            cam_ctrl.move_img_add("left")
+        else:
+            cam_ctrl.move_corner_direction("left")
     elif waitkey_in == ord('d'): # Right
-        cam_ctrl.move_corner_direction("right")
+        if cam_ctrl.img_add_en == True:
+            cam_ctrl.move_img_add("right")
+        else:
+            cam_ctrl.move_corner_direction("right")
     elif waitkey_in == ord('z'): # In
-        cam_ctrl.zoom_cursor_in_out("in")
+        if cam_ctrl.img_add_en == True:
+            cam_ctrl.zoom_img_add("in")
+        else:
+            cam_ctrl.zoom_cursor_in_out("in")
     elif waitkey_in == ord('x'): # Out
-        cam_ctrl.zoom_cursor_in_out("out")
+        if cam_ctrl.img_add_en == True:
+            cam_ctrl.zoom_add_img("out")
+        else:
+            cam_ctrl.zoom_cursor_in_out("out")
     elif waitkey_in == ord('1'): # DBG Info #1
         scaler_crop = cam_ctrl.get_scaler_crop()
         print("scaler_crop: "+str(scaler_crop))
@@ -88,11 +104,20 @@ while running:
             show_timers = False
         else:
             show_timers = True
-    elif waitkey_in == ord('i'): # Test - Insert deer
-        if test_insert_deer == True:
-            test_insert_deer = False
+    elif waitkey_in == ord('4'): # DBG Info #4
+        if cam_ctrl.img_add_init == True:
+            if cam_ctrl.img_add_en == True:
+                cam_ctrl.img_add_en = False
+            else:
+                cam_ctrl.img_add_en = True
+    elif waitkey_in == ord('5'): # DBG Info #5
+        if cam_ctrl.img_add_init == False:
+            cam_ctrl.init_img_add("deer_trans_bg_1.png")
         else:
-            test_insert_deer = True
+            if cam_ctrl.img_transparent_feature == True:
+                cam_ctrl.init_img_add("deer_trans_bg_1.png",False)
+            else:
+                cam_ctrl.init_img_add("deer_trans_bg_1.png",True)
 
     
  

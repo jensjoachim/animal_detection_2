@@ -42,6 +42,9 @@ class rpi_cam3_control:
         self.interpolation = cv2.INTER_NEAREST
         #self.interpolation = cv2.INTER_LINEAR
 
+        # Don't add image in front if not initated
+        self.img_add_init = False
+
     def init_cam(self,cam_sel,dim_window,dim_cam):
 
         # Store in object
@@ -123,11 +126,17 @@ class rpi_cam3_control:
         # Set cursor move step
         self.move_step_size = 0.25
 
-    def read_cam(self):
-        if self.image_proc_mode == 0:
-            return self.debug_image.copy()
+    def read_cam(self): 
+        if self.img_add_en == False:
+            if self.image_proc_mode == 0:
+                return self.debug_image.copy()
+            else:
+                return self.picam.capture_array()
         else:
-            return self.picam.capture_array()
+            if self.image_proc_mode == 0:
+                return self.get_img_add(self.debug_image.copy())
+            else:
+                return self.get_img_add(self.picam.capture_array())
 
     def get_cursor_crop(self,corner,dim):
         return (corner[0],corner[1],corner[0]+dim[0]-1,corner[1]+dim[1]-1)
@@ -251,5 +260,68 @@ class rpi_cam3_control:
     def get_lens_position(self):
         return self.picam.capture_metadata()['LensPosition']
 
-    def test_insert_deer_on_pos(self,img):
-        print("Not implemented")
+    def init_img_add(self,img_add_path,img_transparent_feature=True):
+        if self.image_proc_mode == 0 or self.image_proc_mode == 1:
+            self.img_add_init = True
+            self.img_add_en = True
+            self.img_transparent_feature = img_transparent_feature
+            if img_transparent_feature == True:
+                self.img_add_original = cv2.imread(img_add_path, cv2.IMREAD_UNCHANGED)
+            else:
+                self.img_add_original = cv2.imread(img_add_path)
+            self.img_add = self.img_add_original
+            self.img_pos = (self.dim_cam[0]/2,self.dim_cam[1]/2)
+            self.img_pos_step = 0.25*max(self.img_add_original.shape[1],self.img_add_original.shape[0])
+            self.img_zoom = 1.0
+            self.img_zoom_step = 0.25
+            self.img_location = (round(self.img_pos[0]-self.img_add.shape[1]/2),round(self.img_pos[0]-self.img_add.shape[1]/2)+self.img_add.shape[1],
+                                 round(self.img_pos[1]-self.img_add.shape[0]/2),round(self.img_pos[1]-self.img_add.shape[0]/2)+self.img_add.shape[0])
+            self.dbg_img_add()
+
+    def dbg_img_add(self):
+        print("img_pos:       "+str(self.img_pos))
+        print("img_pos_step:  "+str(self.img_pos_step))
+        print("img_zoom:      "+str(self.img_zoom))
+        print("img_zoom_step: "+str(self.img_zoom_step))
+        print("img_location:  "+str(self.img_location))
+
+        #print("X: "+str(self.img_location[1]-self.img_location[0]))
+        #print("Y: "+str(self.img_location[3]-self.img_location[2]))
+        #print("shape: "+str(self.img_add.shape))
+            
+
+    def get_img_add(self,img):
+        if self.img_transparent_feature:
+            # Split the channels of both images
+            b1, g1, r1, a1 = cv2.split(self.img_add)
+            #b2, g2, r2 = cv2.split(img[0:self.img_add.shape[0],0:self.img_add.shape[1]])
+            #b3, g3, r3 = cv2.split(img[self.img_location[2]:self.img_location[3],self.img_location[0]:self.img_location[1]])
+            #print(b1.shape)
+            #print(b2.shape)
+            #print(b3.shape)
+            #print(img.shape)
+            #print(self.img_add.shape)
+            b2, g2, r2 = cv2.split(img[self.img_location[2]:self.img_location[3],self.img_location[0]:self.img_location[1]])
+            # Apply the custom functionelement-wise using vectorize
+            def custom_operation(x, y, a):
+                return y if a==0 else x
+            vectorized_operation = np.vectorize(custom_operation)
+            b = vectorized_operation(b1, b2, a1)
+            g = vectorized_operation(g1, g2, a1)
+            r = vectorized_operation(r1, r2, a1)
+            # Merge the blended channels back into a single image
+            blended_image = cv2.merge([b, g, r])
+            # Add to img
+            #img[0:self.img_add.shape[0],0:self.img_add.shape[1]] = blended_image
+            img[self.img_location[2]:self.img_location[3],self.img_location[0]:self.img_location[1]] = blended_image
+        else:
+            # Add to img
+            #img[0:self.img_add.shape[0],0:self.img_add.shape[1]] = self.img_add
+            img[self.img_location[2]:self.img_location[3],self.img_location[0]:self.img_location[1]] = self.img_add
+        return img
+    
+    def move_img_add(self,direction):
+        self.dbg_img_add()
+
+    def zoom_img_add(self,inout):
+        self.dbg_img_add()
