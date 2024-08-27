@@ -132,18 +132,18 @@ class rpi_cam3_control:
             img_source = self.debug_image.copy()
         else:
             img_source = self.picam.capture_array()
+        # Apply add image
+        if self.img_add_en == True and self.img_add_init == True:
+            img_add = self.get_img_add(img_source)
+        else:
+            img_add = img_source
         # Apply offset, zoom, and scale
         if self.image_proc_mode == 0 or self.image_proc_mode == 1:
             c1_x, c1_y, c2_x, c2_y = self.get_cursor_crop(self.cursor_corner,self.cursor_dim)
-            img_window = cv2.resize(img_source[c1_y:c2_y,c1_x:c2_x],self.dim_window,interpolation=self.interpolation)
+            img_window = cv2.resize(img_add[c1_y:c2_y,c1_x:c2_x],self.dim_window,interpolation=self.interpolation)
         else:
-            img_window = img_source
-        # Apply add image
-        if self.img_add_en == True and self.img_add_init == True:
-            img = self.get_img_add(img_window)
-        else:
-            img = img_window
-        return img
+            img_window = img_add
+        return img_window
     
     def get_cursor_crop(self,corner,dim):
         return (corner[0],corner[1],corner[0]+dim[0]-1,corner[1]+dim[1]-1)
@@ -276,7 +276,10 @@ class rpi_cam3_control:
         else:
             self.img_add_original = cv2.imread(img_add_path)
         self.img_add = self.img_add_original
-        self.img_pos = (self.dim_window[0]/2,self.dim_window[1]/2)
+        if self.image_proc_mode == 2:
+            self.img_pos = (self.dim_window[0]/2,self.dim_window[1]/2)
+        else:
+            self.img_pos = (self.dim_cam[0]/2,self.dim_cam[1]/2) 
         self.img_pos_step = 0.25*max(self.img_add_original.shape[1],self.img_add_original.shape[0])
         self.img_zoom = 0.5
         self.img_zoom_step = 0.25
@@ -294,20 +297,25 @@ class rpi_cam3_control:
                              round(self.img_pos[0]-img_resize.shape[1]/2)+img_resize.shape[1],
                              round(self.img_pos[1]-img_resize.shape[0]/2),
                              round(self.img_pos[1]-img_resize.shape[0]/2)+img_resize.shape[0])
-        self.dbg_img_add()
+        #self.dbg_img_add()
+        # Get dimmension of imaged read
+        if self.image_proc_mode == 2:
+            dim = self.dim_window
+        else:
+            dim = self.dim_cam
         # Check if all of image is not outside image
         x1,x2,y1,y2 = self.img_location
         self.img_outside_border = False
         if x2 < 0:
             print("add_img outside border: x2")
             self.img_outside_border = True
-        if x1 > (self.dim_window[0]-1):
+        if x1 > (dim[0]-1):
             print("add_img outside border: x1")
             self.img_outside_border = True
         if y2 < 0:
             print("add_img outside border: y2")
             self.img_outside_border = True
-        if y1 > (self.dim_window[1]-1):
+        if y1 > (dim[1]-1):
             print("add_img outside border: y1")
             self.img_outside_border = True
         # Check if image needs to be trimmed
@@ -320,17 +328,17 @@ class rpi_cam3_control:
             print("add_img needs to be trimmed: x2")
             trim_x1 = x1*(-1)
             trim = True
-        if x2 > (self.dim_window[0]-1):
+        if x2 > (dim[0]-1):
             print("add_img needs to be trimmed: x1")
-            trim_x2 = x2 - (self.dim_window[0]-1)
+            trim_x2 = x2 - (dim[0]-1)
             trim = True
         if y1 < 0:
             print("add_img needs to be trimmed: y2")
             trim_y1 = y1*(-1)
             trim = True
-        if y2 > (self.dim_window[1]-1):
+        if y2 > (dim[1]-1):
             print("add_img needs to be trimmed: y1")
-            trim_y2 = y2 - (self.dim_window[1]-1)
+            trim_y2 = y2 - (dim[1]-1)
             trim = True
         if trim == True:
             print("trim_x1: "+str(trim_x1))
@@ -346,7 +354,7 @@ class rpi_cam3_control:
         # Trim image
         self.img_add = img_resize[trim_y1:img_resize.shape[0]-trim_y2,
                                   trim_x1:img_resize.shape[1]-trim_x2]
-        self.dbg_img_add()
+        #self.dbg_img_add()
         
     def dbg_img_add(self):
         print("img_pos:       "+str(self.img_pos))
