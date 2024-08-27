@@ -139,7 +139,7 @@ class rpi_cam3_control:
         else:
             img_window = img_source
         # Apply add image
-        if self.img_add_en == True:
+        if self.img_add_en == True and self.img_add_init == True:
             img = self.get_img_add(img_window)
         else:
             img = img_window
@@ -268,26 +268,25 @@ class rpi_cam3_control:
         return self.picam.capture_metadata()['LensPosition']
 
     def init_img_add(self,img_add_path,img_transparent_feature=True):
-        if self.image_proc_mode == 0 or self.image_proc_mode == 1:
-            self.img_add_init = True
-            self.img_add_en = True
-            self.img_transparent_feature = img_transparent_feature
-            if img_transparent_feature == True:
-                self.img_add_original = cv2.imread(img_add_path, cv2.IMREAD_UNCHANGED)
-            else:
-                self.img_add_original = cv2.imread(img_add_path)
-            self.img_add = self.img_add_original
-            self.img_pos = (self.dim_window[0]/2,self.dim_window[1]/2)
-            self.img_pos_step = 0.25*max(self.img_add_original.shape[1],self.img_add_original.shape[0])
-            self.img_zoom = 1.0
-            self.img_zoom_step = 0.25
-            self.img_outside_border = False
-            self.update_get_img()
-            self.dbg_img_add()
+        self.img_add_init = True
+        self.img_add_en = True
+        self.img_transparent_feature = img_transparent_feature
+        if img_transparent_feature == True:
+            self.img_add_original = cv2.imread(img_add_path, cv2.IMREAD_UNCHANGED)
+        else:
+            self.img_add_original = cv2.imread(img_add_path)
+        self.img_add = self.img_add_original
+        self.img_pos = (self.dim_window[0]/2,self.dim_window[1]/2)
+        self.img_pos_step = 0.25*max(self.img_add_original.shape[1],self.img_add_original.shape[0])
+        self.img_zoom = 1.0
+        self.img_zoom_step = 0.25
+        self.img_outside_border = False
+        self.update_get_img()
+        self.dbg_img_add()
 
     def update_get_img(self):
         # Start to zoom image
-        #img_zoom = 
+        #img_zoom = self.img_add_original
         # Update image location
         self.img_location = (round(self.img_pos[0]-self.img_add_original.shape[1]/2),
                              round(self.img_pos[0]-self.img_add_original.shape[1]/2)+self.img_add_original.shape[1],
