@@ -31,8 +31,8 @@ st.add("all",       100)
 st.add("read_image",100)
 show_timers = False
 # Debug handlers
-cam_ctrl.img_add_en = True
-#cam_ctrl.img_add_en = False
+#cam_ctrl.img_add_en = True
+cam_ctrl.img_add_en = False
 if cam_ctrl.img_add_en == True:
     cam_ctrl.init_img_add("deer_trans_bg_1.png")
 while running:
@@ -41,12 +41,6 @@ while running:
     st.start("all")
     st.start("read_image")
     img = cam_ctrl.read_cam()
-    # Apply offset, zoom, and scale
-    if cam_ctrl.image_proc_mode == 0 or cam_ctrl.image_proc_mode == 1:
-        c1_x, c1_y, c2_x, c2_y = cam_ctrl.get_cursor_crop(cam_ctrl.cursor_corner,cam_ctrl.cursor_dim)
-        img_window = cv2.resize(img[c1_y:c2_y,c1_x:c2_x],cam_ctrl.dim_window,interpolation=cam_ctrl.interpolation)
-    else:
-        img_window = img
     st.stop("read_image")
     # Object detection
     #
@@ -55,7 +49,7 @@ while running:
         cv2.namedWindow('img', cv2.WINDOW_NORMAL)
         #cv2.setWindowProperty('img', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         restart_imshow_window = False
-    cv2.imshow('img',img_window)
+    cv2.imshow('img',img)
     # Show timers
     if show_timers == True:
         st.print_all()

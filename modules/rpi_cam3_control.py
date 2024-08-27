@@ -126,18 +126,25 @@ class rpi_cam3_control:
         # Set cursor move step
         self.move_step_size = 0.25
 
-    def read_cam(self): 
-        if self.img_add_en == False:
-            if self.image_proc_mode == 0:
-                return self.debug_image.copy()
-            else:
-                return self.picam.capture_array()
+    def read_cam(self):
+        # Read image
+        if self.image_proc_mode == 0:
+            img_source = self.debug_image.copy()
         else:
-            if self.image_proc_mode == 0:
-                return self.get_img_add(self.debug_image.copy())
-            else:
-                return self.get_img_add(self.picam.capture_array())
-
+            img_source = self.picam.capture_array()
+        # Apply offset, zoom, and scale
+        if self.image_proc_mode == 0 or self.image_proc_mode == 1:
+            c1_x, c1_y, c2_x, c2_y = self.get_cursor_crop(self.cursor_corner,self.cursor_dim)
+            img_window = cv2.resize(img_source[c1_y:c2_y,c1_x:c2_x],self.dim_window,interpolation=self.interpolation)
+        else:
+            img_window = img_source
+        # Apply add image
+        if self.img_add_en == True:
+            img = self.get_img_add(img_window)
+        else:
+            img = img_window
+        return img
+    
     def get_cursor_crop(self,corner,dim):
         return (corner[0],corner[1],corner[0]+dim[0]-1,corner[1]+dim[1]-1)
 
@@ -359,13 +366,6 @@ class rpi_cam3_control:
             if self.img_transparent_feature:
                 # Split the channels of both images
                 b1, g1, r1, a1 = cv2.split(self.img_add)
-                #b2, g2, r2 = cv2.split(img[0:self.img_add.shape[0],0:self.img_add.shape[1]])
-                #b3, g3, r3 = cv2.split(img[self.img_location[2]:self.img_location[3],self.img_location[0]:self.img_location[1]])
-                #print(b1.shape)
-                #print(b2.shape)
-                #print(b3.shape)
-                #print(img.shape)
-                #print(self.img_add.shape)
                 b2, g2, r2 = cv2.split(img[self.img_location[2]:self.img_location[3],self.img_location[0]:self.img_location[1]])
                 # Apply the custom functionelement-wise using vectorize
                 def custom_operation(x, y, a):
@@ -377,11 +377,9 @@ class rpi_cam3_control:
                 # Merge the blended channels back into a single image
                 blended_image = cv2.merge([b, g, r])
                 # Add to img
-                #img[0:self.img_add.shape[0],0:self.img_add.shape[1]] = blended_image
                 img[self.img_location[2]:self.img_location[3],self.img_location[0]:self.img_location[1]] = blended_image
             else:
                 # Add to img
-                #img[0:self.img_add.shape[0],0:self.img_add.shape[1]] = self.img_add
                 img[self.img_location[2]:self.img_location[3],self.img_location[0]:self.img_location[1]] = self.img_add
         return img
     
