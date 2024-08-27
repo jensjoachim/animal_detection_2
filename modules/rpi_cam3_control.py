@@ -278,7 +278,7 @@ class rpi_cam3_control:
         self.img_add = self.img_add_original
         self.img_pos = (self.dim_window[0]/2,self.dim_window[1]/2)
         self.img_pos_step = 0.25*max(self.img_add_original.shape[1],self.img_add_original.shape[0])
-        self.img_zoom = 1.0
+        self.img_zoom = 0.5
         self.img_zoom_step = 0.25
         self.img_outside_border = False
         self.update_get_img()
@@ -286,12 +286,14 @@ class rpi_cam3_control:
 
     def update_get_img(self):
         # Start to zoom image
-        #img_zoom = self.img_add_original
+        img_resize = cv2.resize(self.img_add_original,
+                                (round(self.img_add_original.shape[1]*self.img_zoom),round(self.img_add_original.shape[0]*self.img_zoom)),
+                                interpolation=self.interpolation)
         # Update image location
-        self.img_location = (round(self.img_pos[0]-self.img_add_original.shape[1]/2),
-                             round(self.img_pos[0]-self.img_add_original.shape[1]/2)+self.img_add_original.shape[1],
-                             round(self.img_pos[1]-self.img_add_original.shape[0]/2),
-                             round(self.img_pos[1]-self.img_add_original.shape[0]/2)+self.img_add_original.shape[0])
+        self.img_location = (round(self.img_pos[0]-img_resize.shape[1]/2),
+                             round(self.img_pos[0]-img_resize.shape[1]/2)+img_resize.shape[1],
+                             round(self.img_pos[1]-img_resize.shape[0]/2),
+                             round(self.img_pos[1]-img_resize.shape[0]/2)+img_resize.shape[0])
         self.dbg_img_add()
         # Check if all of image is not outside image
         x1,x2,y1,y2 = self.img_location
@@ -342,9 +344,8 @@ class rpi_cam3_control:
         y2 = y2-trim_y2
         self.img_location = (x1,x2,y1,y2)
         # Trim image
-        self.img_add = self.img_add_original[trim_y1:self.img_add_original.shape[0]-trim_y2,
-                                             trim_x1:self.img_add_original.shape[1]-trim_x2]
-
+        self.img_add = img_resize[trim_y1:img_resize.shape[0]-trim_y2,
+                                  trim_x1:img_resize.shape[1]-trim_x2]
         self.dbg_img_add()
         
     def dbg_img_add(self):
@@ -352,12 +353,7 @@ class rpi_cam3_control:
         print("img_pos_step:  "+str(self.img_pos_step))
         print("img_zoom:      "+str(self.img_zoom))
         print("img_zoom_step: "+str(self.img_zoom_step))
-        print("img_location:  "+str(self.img_location))
-
-        #print("X: "+str(self.img_location[1]-self.img_location[0]))
-        #print("Y: "+str(self.img_location[3]-self.img_location[2]))
-        #print("shape: "+str(self.img_add.shape))
-            
+        print("img_location:  "+str(self.img_location))         
 
     def get_img_add(self,img):
         self.update_get_img()
@@ -393,10 +389,11 @@ class rpi_cam3_control:
             x = x - round(self.img_pos_step*self.img_zoom)
         elif direction == "right":
             x = x + round(self.img_pos_step*self.img_zoom)
-        ## Update
-        #self.img_pos = (x,y)
-        #self.update_get_img()
-        
+        # Update
+        self.img_pos = (x,y)
 
     def zoom_img_add(self,inout):
-        self.dbg_img_add()
+        if inout == "in":
+            self.img_zoom = self.img_zoom + self.img_zoom_step
+        if inout == "out":
+            self.img_zoom = self.img_zoom - self.img_zoom_step

@@ -84,7 +84,7 @@ while running:
             cam_ctrl.zoom_cursor_in_out("in")
     elif waitkey_in == ord('x'): # Out
         if cam_ctrl.img_add_en == True:
-            cam_ctrl.zoom_add_img("out")
+            cam_ctrl.zoom_img_add("out")
         else:
             cam_ctrl.zoom_cursor_in_out("out")
     elif waitkey_in == ord('1'): # DBG Info #1
