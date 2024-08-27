@@ -393,9 +393,9 @@ class rpi_cam3_control:
             x = x - round(self.img_pos_step*self.img_zoom)
         elif direction == "right":
             x = x + round(self.img_pos_step*self.img_zoom)
-        # Update
-        self.img_pos = (x,y)
-        self.update_get_img()
+        ## Update
+        #self.img_pos = (x,y)
+        #self.update_get_img()
         
 
     def zoom_img_add(self,inout):
