@@ -33,8 +33,9 @@ show_timers = False
 # Debug handlers
 cam_ctrl.img_add_en = True
 #cam_ctrl.img_add_en = False
+img_add_path = "deer_trans_bg_0.png"
 if cam_ctrl.img_add_en == True:
-    cam_ctrl.init_img_add("deer_trans_bg_1.png")
+    cam_ctrl.init_img_add(img_add_path)
 while running:
     
     # Read image
@@ -106,12 +107,12 @@ while running:
                 cam_ctrl.img_add_en = True
     elif waitkey_in == ord('5'): # DBG Info #5
         if cam_ctrl.img_add_init == False:
-            cam_ctrl.init_img_add("deer_trans_bg_1.png")
+            cam_ctrl.init_img_add(img_add_path)
         else:
             if cam_ctrl.img_transparent_feature == True:
-                cam_ctrl.init_img_add("deer_trans_bg_1.png",False)
+                cam_ctrl.init_img_add(img_add_path,False)
             else:
-                cam_ctrl.init_img_add("deer_trans_bg_1.png",True)
+                cam_ctrl.init_img_add(img_add_path,True)
 
     
  
