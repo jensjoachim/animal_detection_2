@@ -270,14 +270,77 @@ class rpi_cam3_control:
             else:
                 self.img_add_original = cv2.imread(img_add_path)
             self.img_add = self.img_add_original
-            self.img_pos = (self.dim_cam[0]/2,self.dim_cam[1]/2)
+            self.img_pos = (self.dim_window[0]/2,self.dim_window[1]/2)
             self.img_pos_step = 0.25*max(self.img_add_original.shape[1],self.img_add_original.shape[0])
             self.img_zoom = 1.0
             self.img_zoom_step = 0.25
-            self.img_location = (round(self.img_pos[0]-self.img_add.shape[1]/2),round(self.img_pos[0]-self.img_add.shape[1]/2)+self.img_add.shape[1],
-                                 round(self.img_pos[1]-self.img_add.shape[0]/2),round(self.img_pos[1]-self.img_add.shape[0]/2)+self.img_add.shape[0])
+            self.img_outside_border = False
+            self.update_get_img()
             self.dbg_img_add()
 
+    def update_get_img(self):
+        # Start to zoom image
+        #img_zoom = 
+        # Update image location
+        self.img_location = (round(self.img_pos[0]-self.img_add_original.shape[1]/2),
+                             round(self.img_pos[0]-self.img_add_original.shape[1]/2)+self.img_add_original.shape[1],
+                             round(self.img_pos[1]-self.img_add_original.shape[0]/2),
+                             round(self.img_pos[1]-self.img_add_original.shape[0]/2)+self.img_add_original.shape[0])
+        self.dbg_img_add()
+        # Check if all of image is not outside image
+        x1,x2,y1,y2 = self.img_location
+        self.img_outside_border = False
+        if x2 < 0:
+            print("add_img outside border: x2")
+            self.img_outside_border = True
+        if x1 > (self.dim_window[0]-1):
+            print("add_img outside border: x1")
+            self.img_outside_border = True
+        if y2 < 0:
+            print("add_img outside border: y2")
+            self.img_outside_border = True
+        if y1 > (self.dim_window[1]-1):
+            print("add_img outside border: y1")
+            self.img_outside_border = True
+        # Check if image needs to be trimmed
+        trim_x1 = 0
+        trim_x2 = 0
+        trim_y1 = 0
+        trim_y2 = 0
+        trim = False
+        if x1 < 0:
+            print("add_img needs to be trimmed: x2")
+            trim_x1 = x1*(-1)
+            trim = True
+        if x2 > (self.dim_window[0]-1):
+            print("add_img needs to be trimmed: x1")
+            trim_x2 = x2 - (self.dim_window[0]-1)
+            trim = True
+        if y1 < 0:
+            print("add_img needs to be trimmed: y2")
+            trim_y1 = y1*(-1)
+            trim = True
+        if y2 > (self.dim_window[1]-1):
+            print("add_img needs to be trimmed: y1")
+            trim_y2 = y2 - (self.dim_window[1]-1)
+            trim = True
+        if trim == True:
+            print("trim_x1: "+str(trim_x1))
+            print("trim_x2: "+str(trim_x2))
+            print("trim_y1: "+str(trim_y1))
+            print("trim_y2: "+str(trim_y2))
+        # Update position
+        x1 = x1+trim_x1
+        x2 = x2-trim_x2
+        y1 = y1+trim_y1
+        y2 = y2-trim_y2
+        self.img_location = (x1,x2,y1,y2)
+        # Trim image
+        self.img_add = self.img_add_original[trim_y1:self.img_add_original.shape[0]-trim_y2,
+                                             trim_x1:self.img_add_original.shape[1]-trim_x2]
+
+        self.dbg_img_add()
+        
     def dbg_img_add(self):
         print("img_pos:       "+str(self.img_pos))
         print("img_pos_step:  "+str(self.img_pos_step))
@@ -291,37 +354,52 @@ class rpi_cam3_control:
             
 
     def get_img_add(self,img):
-        if self.img_transparent_feature:
-            # Split the channels of both images
-            b1, g1, r1, a1 = cv2.split(self.img_add)
-            #b2, g2, r2 = cv2.split(img[0:self.img_add.shape[0],0:self.img_add.shape[1]])
-            #b3, g3, r3 = cv2.split(img[self.img_location[2]:self.img_location[3],self.img_location[0]:self.img_location[1]])
-            #print(b1.shape)
-            #print(b2.shape)
-            #print(b3.shape)
-            #print(img.shape)
-            #print(self.img_add.shape)
-            b2, g2, r2 = cv2.split(img[self.img_location[2]:self.img_location[3],self.img_location[0]:self.img_location[1]])
-            # Apply the custom functionelement-wise using vectorize
-            def custom_operation(x, y, a):
-                return y if a==0 else x
-            vectorized_operation = np.vectorize(custom_operation)
-            b = vectorized_operation(b1, b2, a1)
-            g = vectorized_operation(g1, g2, a1)
-            r = vectorized_operation(r1, r2, a1)
-            # Merge the blended channels back into a single image
-            blended_image = cv2.merge([b, g, r])
-            # Add to img
-            #img[0:self.img_add.shape[0],0:self.img_add.shape[1]] = blended_image
-            img[self.img_location[2]:self.img_location[3],self.img_location[0]:self.img_location[1]] = blended_image
-        else:
-            # Add to img
-            #img[0:self.img_add.shape[0],0:self.img_add.shape[1]] = self.img_add
-            img[self.img_location[2]:self.img_location[3],self.img_location[0]:self.img_location[1]] = self.img_add
+        self.update_get_img()
+        if self.img_outside_border == False:
+            if self.img_transparent_feature:
+                # Split the channels of both images
+                b1, g1, r1, a1 = cv2.split(self.img_add)
+                #b2, g2, r2 = cv2.split(img[0:self.img_add.shape[0],0:self.img_add.shape[1]])
+                #b3, g3, r3 = cv2.split(img[self.img_location[2]:self.img_location[3],self.img_location[0]:self.img_location[1]])
+                #print(b1.shape)
+                #print(b2.shape)
+                #print(b3.shape)
+                #print(img.shape)
+                #print(self.img_add.shape)
+                b2, g2, r2 = cv2.split(img[self.img_location[2]:self.img_location[3],self.img_location[0]:self.img_location[1]])
+                # Apply the custom functionelement-wise using vectorize
+                def custom_operation(x, y, a):
+                    return y if a==0 else x
+                vectorized_operation = np.vectorize(custom_operation)
+                b = vectorized_operation(b1, b2, a1)
+                g = vectorized_operation(g1, g2, a1)
+                r = vectorized_operation(r1, r2, a1)
+                # Merge the blended channels back into a single image
+                blended_image = cv2.merge([b, g, r])
+                # Add to img
+                #img[0:self.img_add.shape[0],0:self.img_add.shape[1]] = blended_image
+                img[self.img_location[2]:self.img_location[3],self.img_location[0]:self.img_location[1]] = blended_image
+            else:
+                # Add to img
+                #img[0:self.img_add.shape[0],0:self.img_add.shape[1]] = self.img_add
+                img[self.img_location[2]:self.img_location[3],self.img_location[0]:self.img_location[1]] = self.img_add
         return img
     
     def move_img_add(self,direction):
-        self.dbg_img_add()
+        x, y = self.img_pos
+        # Update position
+        if direction == "up":
+            y = y - round(self.img_pos_step*self.img_zoom)
+        elif direction == "down":
+            y = y + round(self.img_pos_step*self.img_zoom)
+        elif direction == "left":
+            x = x - round(self.img_pos_step*self.img_zoom)
+        elif direction == "right":
+            x = x + round(self.img_pos_step*self.img_zoom)
+        # Update
+        self.img_pos = (x,y)
+        self.update_get_img()
+        
 
     def zoom_img_add(self,inout):
         self.dbg_img_add()
