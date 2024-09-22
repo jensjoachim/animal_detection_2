@@ -13,8 +13,8 @@ from modules import sampling_timers
 from modules import rpi_cam3_control
 
 #cam_ctrl = rpi_cam3_control.rpi_cam3_control(0,"test.jpg")
-cam_ctrl = rpi_cam3_control.rpi_cam3_control(1,0)
-#cam_ctrl = rpi_cam3_control.rpi_cam3_control(2,0)
+#cam_ctrl = rpi_cam3_control.rpi_cam3_control(1,0)
+cam_ctrl = rpi_cam3_control.rpi_cam3_control(2,0)
 #cam_ctrl = rpi_cam3_control.rpi_cam3_control(0,"test.jpg",(400,300))
 #cam_ctrl = rpi_cam3_control.rpi_cam3_control(1,0,(400,300))
 #cam_ctrl = rpi_cam3_control.rpi_cam3_control(2,0,(400,300))
@@ -27,8 +27,8 @@ restart_imshow_window = True
 running = True
 # Setup timers
 st = sampling_timers.sampling_timers()
-st.add("all",       100)
-st.add("read_image",100)
+st.add("all",       50)
+st.add("read_image",50)
 show_timers = False
 # Debug handlers
 cam_ctrl.img_add_en = True

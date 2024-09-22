@@ -45,18 +45,23 @@ def load_model():
             TFLITE_PC   = False
             EDGE_TPU_EN = True
             #MODEL_DIR   = '../../18_08_2022_efficientdet-lite1_e75_b32_s2000/'
-            MODEL_DIR   = '../../../Downloads/18_08_2022_efficientdet-lite1_e75_b32_s2000/'
+            #MODEL_DIR   = '../../../Downloads/18_08_2022_efficientdet-lite1_e75_b32_s2000/'
+            MODEL_DIR   = '../../object_detection_models/18_08_2022_efficientdet-lite1_e75_b32_s2000/'
         else:
             TFLITE_EN   = True
             TFLITE_PC   = True
             EDGE_TPU_EN = False
-            MODEL_DIR   = '../../../../tflite_custom_models/good/18_08_2022_efficientdet-lite1_e75_b32_s2000/'
+            #MODEL_DIR   = '../../../../tflite_custom_models/good/18_08_2022_efficientdet-lite1_e75_b32_s2000/'
+            MODEL_DIR   = '../../object_detection_models/18_08_2022_efficientdet-lite1_e75_b32_s2000/'
     else:
         TFLITE_EN   = True
         TFLITE_PC   = True
         EDGE_TPU_EN = False
-        MODEL_DIR   = '../../../../tflite_custom_models/good/18_08_2022_efficientdet-lite1_e75_b32_s2000/'
+        #MODEL_DIR   = '../../../../tflite_custom_models/good/18_08_2022_efficientdet-lite1_e75_b32_s2000/'
+        MODEL_DIR   = '../../object_detection_models/18_08_2022_efficientdet-lite1_e75_b32_s2000/'
 
+    EDGE_TPU_EN = False
+        
     # TFLITE
     global interpreter
     global detect_fn
@@ -232,8 +237,8 @@ from modules import sampling_timers
 from modules import rpi_cam3_control
 
 #cam_ctrl = rpi_cam3_control.rpi_cam3_control(0,"test.jpg")
-cam_ctrl = rpi_cam3_control.rpi_cam3_control(1,0)
-#cam_ctrl = rpi_cam3_control.rpi_cam3_control(2,0)
+#cam_ctrl = rpi_cam3_control.rpi_cam3_control(1,0)
+cam_ctrl = rpi_cam3_control.rpi_cam3_control(2,0)
 
 
 
@@ -242,8 +247,9 @@ restart_imshow_window = True
 running = True
 # Setup timers
 st = sampling_timers.sampling_timers()
-st.add("all",       100)
-st.add("read_image",100)
+st.add("all",       50)
+st.add("read_image",50)
+st.add("object_detect",50)
 show_timers = False
 # Debug handlers
 cam_ctrl.img_add_en = True
@@ -261,7 +267,9 @@ while running:
     # Object detection
     #
 
+    st.start("object_detect")
     print(run_detector(img))
+    st.stop("object_detect")
     
     # Show image
     if restart_imshow_window == True:
