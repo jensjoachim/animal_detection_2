@@ -1,0 +1,7 @@
+Person
+Dog
+Cat
+Human_head
+Deer
+Squirrel
+Bird
