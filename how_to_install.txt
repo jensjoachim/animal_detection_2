@@ -1,0 +1,51 @@
+# Install Raspberry Pi OS 64-bit (Python 3.11)
+
+# Prepare system 
+
+# Update RPI
+sudo apt update && sudo apt upgrade -y
+# Enable VNC via
+sudo raspi-config
+# Tail Scale
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up
+# Emacs
+sudo apt update
+sudo apt install snapd -y
+sudo reboot now
+sudo snap install snapd
+sudo snap install emacs --classic
+# Generate ssh key
+ssh-keygen
+# Git Clone
+git clone git@github.com:jensjoachim/animal_detection_2.git
+
+# Install Packets 
+
+# cv2
+pip3 install opencv-contrib-python --break-system-packages
+
+# libedgetpu
+wget https://github.com/feranick/libedgetpu/releases/download/16.0TF2.17.0-1/libedgetpu1-std_16.0tf2.17.0-1.bookworm_arm64.deb
+sudo apt install $(pwd)/libedgetpu1-std_16.0tf2.17.0-1.bookworm_arm64.deb
+wget https://github.com/feranick/libedgetpu/releases/download/16.0TF2.17.0-1/libedgetpu-dev_16.0tf2.17.0-1.bookworm_arm64.deb
+sudo apt install $(pwd)/libedgetpu-dev_16.0tf2.17.0-1.bookworm_arm64.deb
+
+# tflite_runtime
+wget https://github.com/feranick/TFlite-builds/releases/download/v2.17.0/tflite_runtime-2.17.0-cp311-cp311-linux_aarch64.whl
+sudo pip3 install tflite_runtime-2.17.0-cp311-cp311-linux_aarch64.whl --break-system-packages
+
+# pycoral
+wget https://github.com/feranick/pycoral/releases/download/2.0.2TF2.17.0/pycoral-2.0.2-cp311-cp311-linux_aarch64.whl
+sudo pip3 install pycoral-2.0.2-cp311-cp311-linux_aarch64.whl --break-system-packages
+
+# Test pycoral
+sudo reboot now
+git clone git@github.com:feranick/pycoral.git
+cd pycoral
+bash examples/install_requirements.sh classify_image.py
+python3 examples/classify_image.py \
+--model test_data/mobilenet_v2_1.0_224_inat_bird_quant_edgetpu.tflite \
+--labels test_data/inat_bird_labels.txt \
+--input test_data/parrot.jpg
+

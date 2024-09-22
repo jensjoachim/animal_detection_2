@@ -1,4 +1,6 @@
 # Ignore all python cache files
 *.pyc
-# Ignore emacs cacehe
+# Ignore emacs cache
 *~
+# Ignore geany cache
+*\#
