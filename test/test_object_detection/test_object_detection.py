@@ -60,7 +60,7 @@ def load_model():
         #MODEL_DIR   = '../../../../tflite_custom_models/good/18_08_2022_efficientdet-lite1_e75_b32_s2000/'
         MODEL_DIR   = '../../object_detection_models/18_08_2022_efficientdet-lite1_e75_b32_s2000/'
 
-    EDGE_TPU_EN = False
+    #EDGE_TPU_EN = False
         
     # TFLITE
     global interpreter
@@ -240,8 +240,6 @@ from modules import rpi_cam3_control
 #cam_ctrl = rpi_cam3_control.rpi_cam3_control(1,0)
 cam_ctrl = rpi_cam3_control.rpi_cam3_control(2,0)
 
-
-
 # Tmp Loop
 restart_imshow_window = True
 running = True
@@ -250,10 +248,9 @@ st = sampling_timers.sampling_timers()
 st.add("all",       50)
 st.add("read_image",50)
 st.add("object_detect",50)
-show_timers = False
 # Debug handlers
-cam_ctrl.img_add_en = True
-#cam_ctrl.img_add_en = False
+show_timers = True
+cam_ctrl.img_add_en = False
 img_add_path = "deer_trans_bg_0.png"
 if cam_ctrl.img_add_en == True:
     cam_ctrl.init_img_add(img_add_path)
@@ -269,6 +266,7 @@ while running:
 
     st.start("object_detect")
     print(run_detector(img))
+    #print(run_detector(img[0:500,0:700]))
     st.stop("object_detect")
     
     # Show image
@@ -279,7 +277,8 @@ while running:
     cv2.imshow('img',img)
     # Show timers
     if show_timers == True:
-        st.print_all()
+        #st.print_all()
+        st.print_pretty()
     # Handle user input
     waitkey_in = cv2.waitKey(1) & 0xFF
     if waitkey_in == ord('q'): # Exit

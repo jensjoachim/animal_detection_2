@@ -29,10 +29,9 @@ running = True
 st = sampling_timers.sampling_timers()
 st.add("all",       50)
 st.add("read_image",50)
-show_timers = False
 # Debug handlers
-cam_ctrl.img_add_en = True
-#cam_ctrl.img_add_en = False
+show_timers = True
+cam_ctrl.img_add_en = False
 img_add_path = "deer_trans_bg_0.png"
 if cam_ctrl.img_add_en == True:
     cam_ctrl.init_img_add(img_add_path)
@@ -53,7 +52,8 @@ while running:
     cv2.imshow('img',img)
     # Show timers
     if show_timers == True:
-        st.print_all()
+        #st.print_all()
+        st.print_pretty()
     # Handle user input
     waitkey_in = cv2.waitKey(1) & 0xFF
     if waitkey_in == ord('q'): # Exit

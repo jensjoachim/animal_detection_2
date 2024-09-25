@@ -43,6 +43,7 @@ class rpi_cam3_control:
         #self.interpolation = cv2.INTER_LINEAR
 
         # Don't add image in front if not initated
+        self.img_add_en = False
         self.img_add_init = False
 
     def init_cam(self,cam_sel,dim_window,dim_cam):
