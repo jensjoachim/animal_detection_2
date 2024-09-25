@@ -10,6 +10,7 @@ import numpy as np
 #from PIL import ImageFont
 #from PIL import ImageOps
 
+import tensorflow as tf
 
 import importlib.util
 
@@ -61,6 +62,7 @@ def load_model():
         MODEL_DIR   = '../../object_detection_models/18_08_2022_efficientdet-lite1_e75_b32_s2000/'
 
     #EDGE_TPU_EN = False
+    TFLITE_EN   = False
         
     # TFLITE
     global interpreter
@@ -131,7 +133,6 @@ def load_model():
         else: # This is a TF1 model
             boxes_idx, classes_idx, scores_idx = 0, 1, 2
     else:
-        import tensorflow as tf
         # Print Tensorflow version
         print('Tensorflow version: '+tf.__version__)
         # Init Model
