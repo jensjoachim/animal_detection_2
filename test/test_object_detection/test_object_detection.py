@@ -17,8 +17,8 @@ obj_det = object_detection.object_detection(True,True)
 #obj_det = object_detection.object_detection(True,False)
 
 #cam_ctrl = rpi_cam3_control.rpi_cam3_control(0,"test.jpg")
-#cam_ctrl = rpi_cam3_control.rpi_cam3_control(1,0)
-cam_ctrl = rpi_cam3_control.rpi_cam3_control(2,0)
+cam_ctrl = rpi_cam3_control.rpi_cam3_control(1,0)
+#cam_ctrl = rpi_cam3_control.rpi_cam3_control(2,0)
 
 # Tmp Loop
 restart_imshow_window = True
@@ -48,12 +48,13 @@ while running:
     # Object detection
     #
     st.start("object_detect")
-    print(obj_det.run_detector(img))
+    detections = obj_det.run_detector(img)
     st.stop("object_detect")
 
     #
-    # Add dectections on image
+    # Add dectections boxes on image
     #
+    img_w_boxes = obj_det.draw_boxes(img,0,detections["detection_boxes"],detections["detection_classes"],detections["detection_scores"],max_boxes=10,min_score=0.1)
 
     #
     # Show image
@@ -62,7 +63,8 @@ while running:
         cv2.namedWindow('img', cv2.WINDOW_NORMAL)
         #cv2.setWindowProperty('img', cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
         restart_imshow_window = False
-    cv2.imshow('img',img)
+    #cv2.imshow('img',img)
+    cv2.imshow('img_w_boxes',img)
     
     # Show timers
     if show_timers == True:

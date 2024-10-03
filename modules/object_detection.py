@@ -1,21 +1,23 @@
 
-#import time
-
 #import tensorflow as tf
-
-#import importlib.util
 
 import os
 import cv2
 import numpy as np
 
+from PIL import Image
+from PIL import ImageColor
+from PIL import ImageDraw
+from PIL import ImageFont
+from PIL import ImageOps
+
 class object_detection:
 
     def __init__(self,tflite_en=True,edge_tpu_en=True,model_dir=-1):
 
-        # Assume that Linux is on RaspberryPi
-        #if os.name == 'posix':
-
+        # Max detections to be processed per detector
+        self.DET_MAX_PROC = 7
+        
         # Set model type and directory
         self.TFLITE_EN  = tflite_en
         self.EDGE_TPU_EN = edge_tpu_en
@@ -86,6 +88,40 @@ class object_detection:
             # Init Model
             self.detect_fn = tf.saved_model.load(self.MODEL_DIR+'saved_model/')    
 
+        # Load Labels
+        self.category_index = {}
+        labels_file = open(self.MODEL_DIR+'labels.txt', 'r')
+        lines_labels_file = labels_file.readlines()
+        i = 1
+        for line in lines_labels_file:
+            self.category_index[i] = {'id': i, 'name': line.split('\n')[0]}
+            print("\'id\': "+str(i)+", \'name\': "+line.split('\n')[0])
+            i = i + 1
+        #print(self.category_index)
+        # Define a list of colors for visualization
+        np.random.seed(1931)
+        COLORS = np.random.randint(25, 230, size=(i, 3), dtype=np.uint8)
+        self.color_selection = []
+        i = 1
+        for color in COLORS:
+            self.color_selection.append('#{0:02x}{1:02x}{1:02x}'.format(color[2],color[1],color[0]))
+            print("\'id\': "+str(i)+", "+'#{0:02x}{1:02x}{1:02x}'.format(color[2],color[1],color[0]))    
+            i = i + 1
+        #print(self.color_selection)
+
+        # Set general font
+        try:
+            if os.name == 'posix':
+                # Linux
+                #font = ImageFont.truetype("/usr/share/fonts/truetype/ttf-bitstream-vera/VeraBd.ttf",15)
+                self.font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",15)
+            else:
+                # Windows
+                self.font = ImageFont.truetype("C:/Windows/Fonts/Arial/ariblk.ttf",15)
+        except IOError:
+            print("Font not found, using default font.")
+            self.font = ImageFont.load_default()
+
 
     def run_detector(self,img):
         if self.TFLITE_EN:
@@ -145,3 +181,71 @@ class object_detection:
         detections['detection_classes'] = classes
 
         return detections
+
+
+    def draw_boxes(self,image, index, boxes, class_names, scores, max_boxes=10, min_score=0.1):
+        # Only check a limited number of boxes
+        if self.DET_MAX_PROC == -1:
+            loop_range = range(min(boxes.shape[0], max_boxes))
+        else:
+            loop_range = range(self.DET_MAX_PROC)
+
+        """Overlay labeled boxes on an image with formatted scores and label names."""
+        image_pil = Image.fromarray(np.uint8(image)).convert("RGB")
+        for i in loop_range:
+            if scores[i] >= min_score:
+                ymin, xmin, ymax, xmax = tuple(boxes[i])
+                display_str = "a{} {}: {}%".format(int(index),self.category_index[class_names[i]]['name'],int(100 * scores[i]))
+                color = self.color_selection[class_names[i]]
+                self.draw_bounding_box_on_image(
+                    image_pil,
+                    ymin,
+                    xmin,
+                    ymax,
+                    xmax,
+                    color,
+                    self.font,
+                    display_str_list=[display_str])
+        np.copyto(image, np.array(image_pil))
+        return image
+
+    
+    def draw_bounding_box_on_image(self,image,ymin,xmin,ymax,xmax,color,font,thickness=2,display_str_list=()):
+    
+        """Adds a bounding box to an image."""
+        draw = ImageDraw.Draw(image)
+        im_width, im_height = image.size
+        (left, right, top, bottom) = (xmin * im_width, xmax * im_width,
+                                    ymin * im_height, ymax * im_height)
+        draw.line([(left, top), (left, bottom), (right, bottom), (right, top),
+                 (left, top)],
+                width=thickness,
+                fill=color)
+    
+        # If the total height of the display strings added to the top of the bounding
+        # box exceeds the top of the image, stack the strings below the bounding box
+        # instead of above.
+        #display_str_heights = [font.getsize(ds)[1] for ds in display_str_list]
+        display_str_heights = [font.getbbox(ds)[3] for ds in display_str_list]
+        
+        # Each display_str has a top and bottom margin of 0.05x.
+        total_display_str_height = (1 + 2 * 0.05) * sum(display_str_heights)
+    
+        if top > total_display_str_height:
+            text_bottom = top
+        else:
+            text_bottom = top + total_display_str_height
+        # Reverse list and print from bottom to top.
+        for display_str in display_str_list[::-1]:
+            #text_width, text_height = font.getsize(display_str)
+            text_width, text_height = font.getbbox(display_str)[2:]
+            margin = np.ceil(0.05 * text_height)
+            draw.rectangle([(left, text_bottom - text_height - 2 * margin),
+                        (left + text_width, text_bottom)],
+                       fill=color)
+            draw.text((left + margin, text_bottom - text_height - margin),
+                  display_str,
+                  fill="black",
+                  font=font)
+            text_bottom -= text_height - 2 * margin
+    
