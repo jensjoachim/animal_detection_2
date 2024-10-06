@@ -52,17 +52,6 @@ python3 examples/classify_image.py \
 
 
 
-   no_obj  obj    edge
-0: 0.045   0.12   0.078
-1: 0.7     0.13   0.088
-2: 0.7     0.094  0.7
-
-
-
-
-
-
-
 
 
 

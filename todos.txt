@@ -1,0 +1,3 @@
+- Move test images to shared location
+- Add FPS to screen
+- Try to use CV2 for adde boxes on image

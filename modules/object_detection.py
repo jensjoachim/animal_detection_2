@@ -17,6 +17,9 @@ class object_detection:
 
         # Max detections to be processed per detector
         self.DET_MAX_PROC = 7
+
+        # Minimum score for strongest target
+        self.MIN_DECTETION_SCORE = 0.1
         
         # Set model type and directory
         self.TFLITE_EN  = tflite_en
@@ -225,7 +228,6 @@ class object_detection:
         # If the total height of the display strings added to the top of the bounding
         # box exceeds the top of the image, stack the strings below the bounding box
         # instead of above.
-        #display_str_heights = [font.getsize(ds)[1] for ds in display_str_list]
         display_str_heights = [font.getbbox(ds)[3] for ds in display_str_list]
         
         # Each display_str has a top and bottom margin of 0.05x.
@@ -237,7 +239,6 @@ class object_detection:
             text_bottom = top + total_display_str_height
         # Reverse list and print from bottom to top.
         for display_str in display_str_list[::-1]:
-            #text_width, text_height = font.getsize(display_str)
             text_width, text_height = font.getbbox(display_str)[2:]
             margin = np.ceil(0.05 * text_height)
             draw.rectangle([(left, text_bottom - text_height - 2 * margin),
@@ -249,3 +250,78 @@ class object_detection:
                   font=font)
             text_bottom -= text_height - 2 * margin
     
+
+    def find_strongest_detection(self, detections_list, start_index):
+        
+        # Only check a limited number of boxes
+        if self.DET_MAX_PROC == -1:
+            loop_range = range(len(detections['detection_scores']))
+        else:
+            loop_range = range(self.DET_MAX_PROC)
+
+        # Search all lists
+        obj_index = 0
+        list_index = 0
+        i = start_index
+        max_score = 0.0
+        found_max = False
+        for detections in detections_list:
+            for j in loop_range:
+                if detections["detection_scores"][j] > max_score:
+                    max_score = detections["detection_scores"][j]
+                    obj_index = i
+                    list_index = j
+                    found_max = True
+            i = i + 1
+         
+        return found_max, max_score, obj_index, list_index
+
+    
+    def draw_strongest_detection(self, detections_list, max_score, obj_index, list_index, img, color_in, area_index_offset):
+        
+        boxes = []
+        scores = []
+        classes = []
+        boxes.append(detections_list[obj_index]['detection_boxes'][list_index])
+        scores.append(detections_list[obj_index]['detection_scores'][list_index])
+        classes.append(detections_list[obj_index]['detection_classes'][list_index])
+        
+        image_pil = Image.fromarray(np.uint8(img)).convert("RGB")
+        if max_score >= self.MIN_DECTETION_SCORE:
+            ymin, xmin, ymax, xmax = tuple(boxes[0])
+            display_str = "a{} {}: {}%".format(int(obj_index+area_index_offset),self.category_index[classes[0]]['name'],int(100 * scores[0]))
+            if color_in == -1:
+                color = color_selection[classes[0]]
+            else:
+                color = color_in
+            image_pil = Image.fromarray(np.uint8(img)).convert("RGB")
+            self.draw_bounding_box_on_image(
+                    image_pil,
+                    ymin,
+                    xmin,
+                    ymax,
+                    xmax,
+                    color,
+                    self.font,
+                    display_str_list=[display_str])
+            np.copyto(img, np.array(image_pil))
+    
+        return img
+
+
+    def draw_detection_area(self, start_index, img):
+        i = start_index
+        display_str = "a"+str(i)
+        color = (255,255,255)
+        image_pil = Image.fromarray(np.uint8(img)).convert("RGB")
+        self.draw_bounding_box_on_image(
+            image_pil,
+            0.0,
+            0.0,
+            1.0,
+            1.0,
+            color,
+            self.font,
+            display_str_list=[display_str])
+        np.copyto(img, np.array(image_pil))         
+        return img
