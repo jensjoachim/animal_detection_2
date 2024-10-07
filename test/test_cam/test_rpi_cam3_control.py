@@ -32,7 +32,7 @@ st.add("read_image",50)
 # Debug handlers
 show_timers = True
 cam_ctrl.img_add_en = False
-img_add_path = "deer_trans_bg_0.png"
+img_add_path = "../../resources/deer_trans_bg_0.png"
 if cam_ctrl.img_add_en == True:
     cam_ctrl.init_img_add(img_add_path)
 while running:

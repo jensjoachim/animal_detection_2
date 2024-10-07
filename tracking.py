@@ -28,10 +28,12 @@ st.add("obj_detect",50)
 st.add("draw_img"  ,50)
 # Debug handlers
 show_timers = True
-cam_ctrl.img_add_en = False
-img_add_path = "deer_trans_bg_0.png"
+cam_ctrl.img_add_en = True
+img_add_path = "resources/deer_trans_bg_0.png"
 if cam_ctrl.img_add_en == True:
-    cam_ctrl.init_img_add(img_add_path)
+    cam_ctrl.init_img_add(img_add_path,False)
+    cam_ctrl.zoom_img_add("in")
+    cam_ctrl.zoom_img_add("in")
 while running:
 
     #
@@ -59,7 +61,7 @@ while running:
     #
     # Add dectections boxes on image
     #
-    obj_det.draw_boxes(img[det_area[2]:det_area[3],det_area[0]:det_area[1]],0,detections["detection_boxes"],detections["detection_classes"],detections["detection_scores"],max_boxes=10,min_score=0.1)
+    obj_det.draw_boxes(img[det_area[2]:det_area[3],det_area[0]:det_area[1]],0,detections["detection_boxes"],detections["detection_classes"],detections["detection_scores"],max_boxes=10,min_score=0.5)
 
     #
     # Find strongest detection and add
