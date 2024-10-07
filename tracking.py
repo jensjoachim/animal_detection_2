@@ -14,8 +14,8 @@ obj_det = object_detection.object_detection(True,True,model_dir)
 #obj_det = object_detection.object_detection(True,False,model_dir)
 
 #cam_ctrl = rpi_cam3_control.rpi_cam3_control(0,"test.jpg")
-#cam_ctrl = rpi_cam3_control.rpi_cam3_control(1,0)
-cam_ctrl = rpi_cam3_control.rpi_cam3_control(2,0)
+cam_ctrl = rpi_cam3_control.rpi_cam3_control(1,0)
+#cam_ctrl = rpi_cam3_control.rpi_cam3_control(2,0)
 
 # Tmp Loop
 restart_imshow_window = True
@@ -64,9 +64,21 @@ while running:
     #
     # Find strongest detection and add
     #
-    (found_max,max_score,obj_index,list_index) = obj_det.find_strongest_detection([detections],0)
-    obj_det.draw_strongest_detection([detections],max_score,obj_index,list_index,img[det_area[2]:det_area[3],det_area[0]:det_area[1]],'#0000ff',0)
+    (found_max,max_score,list_index,obj_index) = obj_det.find_strongest_detection([detections],0)
+    obj_det.draw_strongest_detection([detections],max_score,list_index,obj_index,img[det_area[2]:det_area[3],det_area[0]:det_area[1]],'#0000ff',0)
     st.stop("draw_img")
+
+    #
+    # Set feedback
+    #
+    if found_max:
+        box = detections['detection_boxes'][obj_index]
+        xy = ((box[1]+(box[3]-box[1])/2),(box[0]+(box[2]-box[0])/2))
+        print(xy)
+        print(box)
+        print(list_index)
+        print(obj_index)
+        #cam_ctrl.move_corner((x,y))
     
     #
     # Show image

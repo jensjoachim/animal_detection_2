@@ -54,7 +54,7 @@ while running:
     #
     # Add dectections boxes on image
     #
-    img_w_boxes = obj_det.draw_boxes(img,0,detections["detection_boxes"],detections["detection_classes"],detections["detection_scores"],max_boxes=10,min_score=0.1)
+    obj_det.draw_boxes(img,0,detections["detection_boxes"],detections["detection_classes"],detections["detection_scores"],max_boxes=10,min_score=0.1)
 
     #
     # Show image

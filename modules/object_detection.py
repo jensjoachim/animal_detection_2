@@ -260,8 +260,8 @@ class object_detection:
             loop_range = range(self.DET_MAX_PROC)
 
         # Search all lists
-        obj_index = 0
         list_index = 0
+        obj_index = 0
         i = start_index
         max_score = 0.0
         found_max = False
@@ -269,27 +269,27 @@ class object_detection:
             for j in loop_range:
                 if detections["detection_scores"][j] > max_score:
                     max_score = detections["detection_scores"][j]
-                    obj_index = i
-                    list_index = j
+                    list_index = i
+                    obj_index = j
                     found_max = True
             i = i + 1
          
-        return found_max, max_score, obj_index, list_index
+        return found_max, max_score, list_index, obj_index
 
     
-    def draw_strongest_detection(self, detections_list, max_score, obj_index, list_index, img, color_in, area_index_offset):
+    def draw_strongest_detection(self, detections_list, max_score, list_index, obj_index, img, color_in, area_index_offset):
         
         boxes = []
         scores = []
         classes = []
-        boxes.append(detections_list[obj_index]['detection_boxes'][list_index])
-        scores.append(detections_list[obj_index]['detection_scores'][list_index])
-        classes.append(detections_list[obj_index]['detection_classes'][list_index])
+        boxes.append(detections_list[list_index]['detection_boxes'][obj_index])
+        scores.append(detections_list[list_index]['detection_scores'][obj_index])
+        classes.append(detections_list[list_index]['detection_classes'][obj_index])
         
         image_pil = Image.fromarray(np.uint8(img)).convert("RGB")
         if max_score >= self.MIN_DECTETION_SCORE:
             ymin, xmin, ymax, xmax = tuple(boxes[0])
-            display_str = "a{} {}: {}%".format(int(obj_index+area_index_offset),self.category_index[classes[0]]['name'],int(100 * scores[0]))
+            display_str = "a{} {}: {}%".format(int(list_index+area_index_offset),self.category_index[classes[0]]['name'],int(100 * scores[0]))
             if color_in == -1:
                 color = color_selection[classes[0]]
             else:
