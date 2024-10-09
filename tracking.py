@@ -2,6 +2,7 @@
 import sys
 import os
 import cv2
+import time
 import numpy as np
 
 # Import local packages / modules
@@ -74,13 +75,57 @@ while running:
     # Set feedback
     #
     if found_max:
+        thr_zoom_in = 0.35
+        thr_zoom_out = 0.65
+
+        # Get box details
         box = detections['detection_boxes'][obj_index]
-        xy = ((box[1]+(box[3]-box[1])/2),(box[0]+(box[2]-box[0])/2))
-        print(xy)
-        print(box)
-        print(list_index)
-        print(obj_index)
-        #cam_ctrl.move_corner((x,y))
+        box_width = (box[3]-box[1],box[2]-box[0])
+        box_center = ((box[1]+box_width[0]/2),(box[0]+box_width[1]/2))
+        # DBG
+        print(box_width)
+        print(box_center)
+        # Apply move
+        # window/obj_are ration * object detect
+        x_ratio = 1.0*(det_area[1]-det_area[0]+1)/cam_ctrl.dim_window[0]
+        y_ratio = 1.0*(det_area[3]-det_area[2]+1)/cam_ctrl.dim_window[1]
+        print("x_ratio: "+str(x_ratio))
+        print("y_ratio: "+str(y_ratio))
+        x_window_pixels = det_area[1]-det_area[0]+1
+        y_window_pixels = det_area[3]-det_area[2]+1
+        print("x_window_pixels: "+str(x_window_pixels))
+        print("y_window_pixels: "+str(y_window_pixels))
+        x_cam_pixels = x_window_pixels * cam_ctrl.cursor_zoom
+        y_cam_pixels = y_window_pixels * cam_ctrl.cursor_zoom
+        print("x_cam_pixels: "+str(x_cam_pixels))
+        print("y_cam_pixels: "+str(y_cam_pixels))
+        x_cam_pixels_add = round(x_cam_pixels * (box_center[0] - 0.5))
+        y_cam_pixels_add = round(y_cam_pixels * (box_center[1] - 0.5))
+        print("x_cam_pixels_add: "+str(x_cam_pixels_add))
+        print("y_cam_pixels_add: "+str(y_cam_pixels_add))
+        x_new = cam_ctrl.cursor_corner[0] + x_cam_pixels_add
+        y_new = cam_ctrl.cursor_corner[1] + y_cam_pixels_add
+        #x_new = cam_ctrl.cursor_corner[0] - x_cam_pixels_add
+        #y_new = cam_ctrl.cursor_corner[1] - y_cam_pixels_add
+        x = cam_ctrl.cursor_corner[0]
+        y = cam_ctrl.cursor_corner[1]
+        print("x: "+str(x))
+        print("y: "+str(y))
+        print("x_new: "+str(x_new))
+        print("y_new: "+str(y_new))
+        cam_ctrl.move_corner((x_new,y_new))
+        
+        # Check if zoom is needed
+        if box_width[0] > thr_zoom_out or box_width[1] > thr_zoom_out:
+            cam_ctrl.zoom_cursor_in_out("out")
+        if box_width[0] < thr_zoom_in or box_width[1] < thr_zoom_in:
+            cam_ctrl.zoom_cursor_in_out("in")
+
+        print("Zoom: "+str(cam_ctrl.cursor_zoom))
+        print("Pos: "+str(cam_ctrl.img_pos))
+        print("Cursor dim: "+str(cam_ctrl.cursor_dim))
+
+
     
     #
     # Show image

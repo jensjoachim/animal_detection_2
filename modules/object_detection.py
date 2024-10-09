@@ -116,8 +116,9 @@ class object_detection:
         try:
             if os.name == 'posix':
                 # Linux
-                #font = ImageFont.truetype("/usr/share/fonts/truetype/ttf-bitstream-vera/VeraBd.ttf",15)
-                self.font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",15)
+                #self.font = ImageFont.truetype("/usr/share/fonts/truetype/ttf-bitstream-vera/VeraBd.ttf",15)
+                #self.font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",15)
+                self.font = ImageFont.load_default()
             else:
                 # Windows
                 self.font = ImageFont.truetype("C:/Windows/Fonts/Arial/ariblk.ttf",15)
