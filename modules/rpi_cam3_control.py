@@ -126,13 +126,25 @@ class rpi_cam3_control:
         print("cursor_crop  : "+str(cursor_crop))
         # Set cursor move step
         self.move_step_size = 0.25
+        # If mode #2 wait for camera to return same cursor_crop
+        self.scaler_crop_in_sync = True
+        if self.image_proc_mode == 2:
+            self.set_scaler_crop(self.cursor_corner,self.cursor_dim)
+            self.scaler_crop_in_sync = False
 
     def read_cam(self):
         # Read image
         if self.image_proc_mode == 0:
             img_source = self.debug_image.copy()
         else:
-            img_source = self.picam.capture_array()
+            #img_source = self.picam.capture_array()
+            self.capture_request = self.picam.capture_request()
+            img_source = self.capture_request.make_array("main")
+            metadata =   self.capture_request.get_metadata()
+            self.capture_request.release()
+        # Check if scaler crop has been updated
+        if self.image_proc_mode == 2:
+            self.scaler_crop_in_sync = self.cursor_corner+self.cursor_dim == metadata['ScalerCrop']
         # Apply add image
         if self.img_add_en == True and self.img_add_init == True:
             img_add = self.get_img_add(img_source)
